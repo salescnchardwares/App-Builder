@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Light theme: the page shows its light look. -->
+    <style name="AppTheme" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/window_bg</item>
+        <item name="android:colorPrimary">#131B22</item>
+        <item name="android:colorAccent">#D3600A</item>
+    </style>
+</resources>

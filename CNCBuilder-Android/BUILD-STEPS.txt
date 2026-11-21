@@ -1,0 +1,59 @@
+CNC Machine Application Builder - Android project (Marvel Tech)
+================================================================
+
+WHAT YOU NEED
+- A Windows PC with internet (first build downloads about 1-2 GB).
+- Android Studio, free: https://developer.android.com/studio
+
+1. OPEN THE PROJECT
+   - Unzip CNCBuilder-Android.zip, e.g. to C:\Projects\CNCBuilder-Android
+   - Start Android Studio > Open > choose the CNCBuilder-Android folder.
+   - Wait for "Gradle sync" to finish (bottom status bar). First time is slow.
+   - If Android Studio offers to install an SDK or upgrade the Android Gradle
+     plugin, press Install / Upgrade and let it finish.
+
+2. QUICK TEST APK (debug)
+   - Menu: Build > Build App Bundle(s) / APK(s) > Build APK(s)
+   - When done, click "locate". The file is:
+     app\build\outputs\apk\debug\app-debug.apk
+   - Copy it to the phone, tap it, allow "Install unknown apps", install.
+   - Or connect the phone by USB (USB debugging on) and press the green Run button.
+
+3. RELEASE APK TO GIVE TO CUSTOMERS (signed)
+   - Menu: Build > Generate Signed App Bundle or APK > APK > Next
+   - "Create new..." key store. Save it as e.g. C:\Keys\marveltech.jks
+     Fill in passwords, alias "marveltech", validity 25+ years, your name/company.
+   - Choose "release" > Create.
+   - File: app\release\app-release.apk  -> share on WhatsApp / Drive.
+   - BACK UP marveltech.jks AND ITS PASSWORDS. Every future update must be
+     signed with the same key, or phones will refuse to update the app.
+
+4. GOOGLE PLAY (optional)
+   - Same menu, choose "Android App Bundle" instead of APK -> .aab file.
+   - Play Console account: one-time US$25.
+   - Upload the .aab, the icon play-store\icon-512.png, phone screenshots,
+     descriptions and a privacy policy link.
+
+5. CHANGING THE APP LATER
+   - The whole app is one file: app\src\main\assets\index.html
+     Replace it with a new version from Claude.
+   - Open app\build.gradle and raise versionCode (1 -> 2) and versionName ("1.1").
+   - Build a signed APK again with the SAME key store.
+
+NOTES
+- App name under the icon: CNC Builder (app\src\main\res\values\strings.xml).
+- Package ID: com.marveltech.cncbuilder (never change it after release).
+- License, trial and saved values live in the app's storage. "Clear data" or
+  uninstalling the app resets them.
+- Copy buttons use the phone clipboard. "Send request by email" opens Gmail
+  or any email app.
+- Fonts come from Google Fonts when online; offline the phone's own font is used.
+- Never put the Key Generator page inside this project.
+
+Support: marveltech.cbe0270@gmail.com
+
+BUILD WITHOUT ANDROID STUDIO (GitHub)
+- Create a free GitHub repo, upload ALL files of this folder (keep .github folder).
+- Open the Actions tab > "Build APK" > wait ~5 min until green.
+- Open the run > Artifacts > download CNCBuilder-debug-apk (zip) > unzip > app-debug.apk.
+- Copy to phone and install (allow "Install unknown apps").

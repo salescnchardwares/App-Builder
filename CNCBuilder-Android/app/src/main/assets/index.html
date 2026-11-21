@@ -1,0 +1,1949 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>CNC Machine Application Builder</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+[hidden]{display:none!important}
+html,body{margin:0}
+
+/* Layout: one narrow column like a pendant screen — control soft-keys, program-type keys, parameter grid, toolpath preview, then the generated program */
+:root{
+  --bg:#ECEFF1; --surface:#FFFFFF; --ink:#1A222B; --muted:#5A6672; --line:#D2D8DD;
+  --accent:#D3600A; --accent-ink:#FFFFFF; --accent-soft:#FBE7D6;
+  --code-bg:#131B22; --code-fg:#D5E0E8; --code-var:#F4A862; --code-kw:#8CC4FF; --code-cmt:#71879A; --code-num:#B9E28C; --code-n:#5E7283;
+  --ok:#2E7D4F;
+  --f-display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E1317; --surface:#172027; --ink:#E3E8EC; --muted:#94A2AE; --line:#2A353E;
+  --accent:#F08A3A; --accent-ink:#1A1007; --accent-soft:#3A2717;
+  --code-bg:#090D11; --code-fg:#D5E0E8; --code-var:#F4A862; --code-kw:#8CC4FF; --code-cmt:#6A7F91; --code-num:#B9E28C; --code-n:#4E6070;
+  --ok:#6CCB92; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1317; --surface:#172027; --ink:#E3E8EC; --muted:#94A2AE; --line:#2A353E;
+  --accent:#F08A3A; --accent-ink:#1A1007; --accent-soft:#3A2717;
+  --code-bg:#090D11; --code-fg:#D5E0E8; --code-var:#F4A862; --code-kw:#8CC4FF; --code-cmt:#6A7F91; --code-num:#B9E28C; --code-n:#4E6070;
+  --ok:#6CCB92; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:720px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:22px}
+header h1{font-family:var(--f-display);font-weight:700;font-size:34px;letter-spacing:.01em;margin:0;line-height:1;text-wrap:balance}
+header p{margin:6px 0 0;color:var(--muted);font-size:14px}
+.lbl{font-family:var(--f-display);font-weight:600;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;display:flex;justify-content:space-between;gap:8px}
+.lbl b{color:var(--accent);font-weight:700}
+.keys{display:grid;gap:8px}
+.keys.c3{grid-template-columns:repeat(3,1fr)}
+.keys.c2{grid-template-columns:repeat(2,1fr)}
+.key{appearance:none;font:inherit;text-align:left;cursor:pointer;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-bottom-width:3px;border-radius:6px;padding:10px 12px;min-width:0;display:flex;flex-direction:column;gap:2px;transition:background .15s,border-color .15s}
+.key .k1{font-family:var(--f-display);font-weight:700;font-size:18px;letter-spacing:.04em;line-height:1.1}
+.key .k2{font-size:12px;color:var(--muted);line-height:1.3}
+.key[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.key[aria-pressed="true"] .k2{color:var(--accent-ink);opacity:.85}
+.key:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 12px}
+@media (min-width:560px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label{font-size:12px;color:var(--muted);font-weight:500}
+.inp{display:flex;align-items:stretch;border:1px solid var(--line);border-radius:5px;background:var(--bg);overflow:hidden}
+.inp:focus-within{border-color:var(--accent)}
+.inp .pre,.inp .unit{font-family:var(--f-mono);font-size:13px;color:var(--muted);padding:0 8px;display:flex;align-items:center}
+.inp .pre{background:var(--accent-soft);color:var(--accent);font-weight:500}
+.inp input,.inp select{flex:1;min-width:0;border:0;background:transparent;color:var(--ink);font-family:var(--f-mono);font-size:15px;padding:9px 8px;font-variant-numeric:tabular-nums}
+.inp input:focus,.inp select:focus{outline:none}
+.facts{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.chip{font-family:var(--f-mono);font-size:12px;padding:3px 8px;border-radius:99px;background:var(--bg);border:1px solid var(--line);color:var(--muted)}
+.chip.warn{color:var(--accent);border-color:var(--accent)}
+canvas{display:block;width:100%;height:220px;border-radius:6px;background:var(--bg)}
+.code{background:var(--code-bg);border-radius:8px;overflow:hidden}
+.codebar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 8px 8px 14px;border-bottom:1px solid rgba(255,255,255,.08)}
+.codebar span{font-family:var(--f-mono);font-size:12px;color:var(--code-cmt);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btn{appearance:none;cursor:pointer;font-family:var(--f-display);font-weight:700;font-size:15px;letter-spacing:.08em;text-transform:uppercase;background:var(--accent);color:var(--accent-ink);border:0;border-radius:5px;padding:8px 16px;flex:none}
+.btn.ghost{background:transparent;color:var(--code-fg);border:1px solid rgba(255,255,255,.2)}
+pre{margin:0;padding:12px 0;overflow-x:auto;font-family:var(--f-mono);font-size:13px;line-height:1.6;color:var(--code-fg);counter-reset:ln}
+pre .l{display:block;padding:0 14px 0 0;white-space:pre}
+pre .l::before{counter-increment:ln;content:counter(ln);display:inline-block;width:34px;margin-right:12px;text-align:right;color:var(--code-n);user-select:none;-webkit-user-select:none}
+.t-c{color:var(--code-cmt)} .t-v{color:var(--code-var)} .t-k{color:var(--code-kw);font-weight:500} .t-g{color:var(--code-num)} .t-n{color:var(--code-n)} .t-s{color:var(--code-var)}
+.call{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.call code{font-family:var(--f-mono);font-size:15px;background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:6px 10px;color:var(--accent);font-weight:500}
+.notes{margin:10px 0 0;padding-left:18px;color:var(--muted);font-size:13.5px;display:flex;flex-direction:column;gap:6px;max-width:65ch}
+.err{color:var(--accent);font-family:var(--f-mono);font-size:13px;padding:14px}
+.view{display:flex;flex-direction:column;gap:22px}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.tabs button{appearance:none;background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-1px;cursor:pointer;font-family:var(--f-display);font-weight:700;font-size:16px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);padding:6px 9px 8px;white-space:nowrap;flex:none}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.search input{font-family:var(--f-body)}
+.legend{display:flex;flex-wrap:wrap;align-items:center;gap:6px 6px;font-size:12px;color:var(--muted);margin:10px 0 0}
+.legend .tag{margin-left:6px}.legend .tag:first-child{margin-left:0}
+.tag{font-family:var(--f-display);font-weight:600;font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:1px 7px;border-radius:3px;border:1px solid currentColor;white-space:nowrap;display:inline-block;line-height:1.5}
+.tag.keep{color:var(--ok)} .tag.clear{color:var(--muted)} .tag.ro{color:var(--muted);border-style:dashed} .tag.rw{color:var(--accent)}
+.vg{background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.vg h3{margin:0;padding:10px 14px;font-family:var(--f-display);font-weight:700;font-size:16px;letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.vg h3 small{font-family:var(--f-body);font-weight:400;font-size:12px;letter-spacing:0;text-transform:none;color:var(--muted)}
+.vr{display:grid;grid-template-columns:minmax(0,9.5rem) minmax(0,1fr);gap:4px 12px;padding:9px 14px;border-top:1px solid var(--line)}
+.vr:first-of-type{border-top:0}
+.vr .rg{font-family:var(--f-mono);font-size:13px;color:var(--accent);font-weight:500;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.vr .ds{font-size:14px;line-height:1.4}
+.vr .ds .tag{margin-left:6px;vertical-align:1px}
+.vr .ds em{display:block;font-style:normal;font-size:12.5px;color:var(--muted);margin-top:2px}
+.vg .foot{padding:9px 14px;font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);background:var(--bg)}
+.args{display:grid;grid-template-columns:repeat(auto-fill,minmax(4.6rem,1fr));gap:6px}
+.args div{font-family:var(--f-mono);font-size:14px;border:1px solid var(--line);border-radius:5px;padding:5px 8px;display:flex;justify-content:space-between;gap:6px;font-variant-numeric:tabular-nums}
+.args b{font-family:var(--f-display);font-size:17px;line-height:1.1}
+.args span{color:var(--accent)}
+.ops{display:grid;grid-template-columns:minmax(0,7rem) minmax(0,1fr);gap:8px 12px;font-size:14px}
+.ops dt{font-family:var(--f-display);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-size:13px;padding-top:2px}
+.ops dd{margin:0;font-family:var(--f-mono);font-size:13px;overflow-wrap:anywhere}
+.mono-note{font-size:13px;color:var(--muted);margin:10px 0 0;max-width:65ch}
+.panel pre.ex{background:var(--code-bg);color:var(--code-fg);border-radius:6px;padding:10px 12px;margin:8px 0 0;font-size:13px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.card>h3{margin:0;padding:10px 14px;font-family:var(--f-display);font-weight:700;font-size:18px;letter-spacing:.05em;text-transform:uppercase;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.card>h3 small{font-family:var(--f-body);font-weight:400;font-size:12px;letter-spacing:0;text-transform:none;color:var(--muted)}
+.card .body{padding:14px;display:flex;flex-direction:column;gap:14px}
+.res{display:grid;grid-template-columns:repeat(auto-fill,minmax(8.4rem,1fr));gap:8px}
+.res>div{background:var(--bg);border-radius:6px;padding:8px 10px;min-width:0}
+.res small{display:block;font-family:var(--f-display);font-weight:600;text-transform:uppercase;font-size:11.5px;letter-spacing:.08em;color:var(--muted)}
+.res b{font-family:var(--f-display);font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2;overflow-wrap:anywhere}
+.res b i{font-style:normal;font-family:var(--f-body);font-weight:400;font-size:12.5px;color:var(--muted);margin-left:4px}
+.res .hi b{color:var(--accent)}
+.warnline{font-size:13px;color:var(--accent);margin:0}
+.snip{background:var(--code-bg);border-radius:6px;overflow:hidden}
+.snip .bar{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 6px 6px 12px;border-bottom:1px solid rgba(255,255,255,.08)}
+.snip .bar span{font-family:var(--f-mono);font-size:12px;color:var(--code-cmt);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.snip .btn{padding:4px 10px;font-size:12px}
+.snip pre{padding:10px 0}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:6px}
+table.t{border-collapse:collapse;width:100%;font-family:var(--f-mono);font-size:13px;font-variant-numeric:tabular-nums}
+table.t th{font-family:var(--f-display);font-weight:600;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:right;padding:6px 10px;background:var(--bg);white-space:nowrap}
+table.t td{text-align:right;padding:5px 10px;border-top:1px solid var(--line);white-space:nowrap}
+table.t th:first-child,table.t td:first-child{text-align:left;color:var(--muted)}
+table.t tr:last-child td{color:var(--accent);font-weight:500}
+details.cy{background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+details.cy summary{cursor:pointer;list-style:none;padding:11px 14px;display:flex;gap:12px;align-items:baseline}
+details.cy summary::-webkit-details-marker{display:none}
+details.cy summary b{font-family:var(--f-mono);font-size:15px;color:var(--accent);min-width:5.2rem;flex:none}
+details.cy summary span{font-size:14.5px;flex:1;min-width:0}
+details.cy summary::after{content:"+";font-family:var(--f-display);font-weight:700;font-size:20px;color:var(--muted);line-height:1}
+details.cy[open] summary::after{content:"−"}
+details.cy[open] summary{border-bottom:1px solid var(--line)}
+details.cy .body{padding:12px 14px 14px;display:flex;flex-direction:column;gap:12px}
+.plist{display:grid;grid-template-columns:minmax(0,6.5rem) minmax(0,1fr);gap:6px 12px;font-size:13.5px;margin:0}
+.plist dt{font-family:var(--f-mono);color:var(--accent);font-size:13px;overflow-wrap:anywhere}
+.plist dd{margin:0;color:var(--ink)}
+.keys.tstd{grid-template-columns:repeat(auto-fill,minmax(6.4rem,1fr))}
+.keys.tstd .key{padding:8px 10px}
+.keys.tstd .key .k1{font-size:16px}
+table.chart tr:last-child td{color:inherit;font-weight:400}
+table.chart tbody tr{cursor:pointer}
+table.chart tbody tr:hover td{background:var(--bg)}
+table.chart tbody tr.sel td{background:var(--accent-soft);color:var(--accent);font-weight:500}
+table.chart td:first-child{color:var(--ink);font-weight:500}
+.split{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;align-items:center}
+@media (min-width:600px){.split{grid-template-columns:minmax(0,15rem) minmax(0,1fr)}}
+.tipdia{width:100%;max-width:300px;height:auto;margin:0 auto;display:block}
+.tipdia .sq{fill:none;stroke:var(--line);stroke-dasharray:4 4}
+.tipdia .nose{fill:var(--accent-soft);stroke:var(--muted)}
+.tipdia .pts circle{fill:var(--ink)}
+.tipdia .num text{font-family:var(--f-display);font-weight:700;font-size:17px;fill:var(--ink);text-anchor:middle}
+.tipdia .num text.c{font-size:13px;fill:var(--muted)}
+.tipdia .hl{font-family:var(--f-display);font-weight:700;font-size:15px;fill:var(--accent)}
+.tipdia .hl2{font-family:var(--f-display);font-weight:700;font-size:15px;fill:var(--ink)}
+.tipdia .sm{font-family:var(--f-body);font-size:11px;fill:var(--muted)}
+.tipdia .ax line{stroke:var(--muted);stroke-width:1.5}
+.tipdia .ax text{font-family:var(--f-mono);font-size:11px;fill:var(--muted)}
+.tipdia .path{stroke:var(--ink);stroke-width:2}
+.tipdia .arrow{fill:var(--ink)}
+.tipdia .tool{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.5}
+.tipdia .tool2{fill:none;stroke:var(--muted);stroke-width:1.5;stroke-dasharray:4 3}
+.tri{width:100%;max-width:340px;height:auto;display:block;margin:0 auto}
+.tri .shape{fill:var(--accent-soft);stroke:var(--accent);stroke-width:2}
+.tri text{font-family:var(--f-mono);font-size:12px;fill:var(--ink)}
+.tri .lab{font-family:var(--f-display);font-weight:700;font-size:15px;fill:var(--accent)}
+.cats{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.cats button{appearance:none;cursor:pointer;font-family:var(--f-display);font-weight:600;font-size:13px;letter-spacing:.06em;text-transform:uppercase;background:var(--surface);color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:4px 11px}
+.cats button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.cats button span{font-family:var(--f-mono);font-weight:400;letter-spacing:0;margin-left:4px;opacity:.7}
+details.alm summary b{min-width:6.6rem}
+.cf{display:grid;grid-template-columns:minmax(0,3.6rem) minmax(0,1fr);gap:8px 10px;font-size:14px;margin:0}
+.cf dt{font-family:var(--f-display);font-weight:700;font-size:12px;letter-spacing:.1em;text-transform:uppercase;padding-top:2px}
+.cf dt.c{color:var(--muted)} .cf dt.f{color:var(--ok)}
+.cf dd{margin:0}
+.almcat,details.cy summary span.almcat{flex:none;font-family:var(--f-display);font-weight:600;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);flex:none}
+@media (max-width:480px){details.cy summary span.almcat{display:none}}
+.contact{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
+.contact small{width:100%;font-family:var(--f-display);font-weight:600;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.contact .mail{font-family:var(--f-mono);font-size:15px;color:var(--accent);overflow-wrap:anywhere;user-select:all;-webkit-user-select:all;min-width:0}
+.contact .btn{padding:6px 12px;font-size:13px}
+.lic{font-family:var(--f-display);font-weight:600;font-size:12px;letter-spacing:.08em;text-transform:uppercase;padding:2px 9px;border-radius:99px;border:1px solid var(--muted);color:var(--muted)}
+.lic.ok{border-color:var(--ok);color:var(--ok)}
+.lic.bad{border-color:var(--accent);color:var(--accent)}
+#licKey{text-transform:uppercase;letter-spacing:.06em}
+.trial{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--accent-soft);border:1px solid var(--accent);border-radius:8px;padding:8px 8px 8px 14px;font-size:14px}
+.trial b{color:var(--accent);font-family:var(--f-mono);font-weight:500}
+.trial .btn{padding:6px 14px;font-size:13px}
+.trial.over{background:var(--accent);color:var(--accent-ink)}
+.trial.over b{color:var(--accent-ink)}
+.trial.over .btn{background:var(--accent-ink);color:var(--accent)}
+.tabs button[aria-disabled="true"]{opacity:.4;cursor:not-allowed}
+.lockcard{border-color:var(--accent)}
+.lockcard h3{color:var(--accent)}
+.msgbox{margin:0;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px 12px;font-family:var(--f-mono);font-size:12.5px;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--ink)}
+.empty{color:var(--muted);font-size:14px;padding:6px 2px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);font-family:var(--f-display);font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:8px 18px;border-radius:99px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+@media (max-width:400px){.key .k1{font-size:16px}.keys.c3 .key{padding:9px 8px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <header>
+    <h1>CNC Machine Application Builder</h1>
+    <p>Macro programs, calculators, canned cycles, thread charts, angle and radius solving, tool compensation, programming alarms and the variable map for FANUC, Mitsubishi and Sinumerik.</p>
+  </header>
+
+  <div class="trial" id="trialBar" hidden><span id="trialText"></span><button class="btn" id="trialBtn">Activate</button></div>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" id="tabGen" aria-selected="true">Programs</button>
+    <button role="tab" id="tabCalc" aria-selected="false">Calculators</button>
+    <button role="tab" id="tabCyc" aria-selected="false">Cycles</button>
+    <button role="tab" id="tabThr" aria-selected="false">Threads</button>
+    <button role="tab" id="tabGeo" aria-selected="false">Geometry</button>
+    <button role="tab" id="tabComp" aria-selected="false">Tool comp</button>
+    <button role="tab" id="tabAlm" aria-selected="false">Alarms</button>
+    <button role="tab" id="tabVar" aria-selected="false">Variables</button>
+    <button role="tab" id="tabAbout" aria-selected="false">About</button>
+  </nav>
+
+  <div id="viewCalc" class="view" hidden></div>
+
+  <section id="ctrlSec">
+    <p class="lbl"><span>Control</span></p>
+    <div class="keys c3" id="ctrlKeys"></div>
+  </section>
+
+  <div id="viewCyc" class="view" hidden>
+    <section>
+      <div class="keys c2" id="cycKind"></div>
+      <p class="mono-note" id="cycNote"></p>
+    </section>
+    <div id="cycList" class="view" style="gap:10px"></div>
+  </div>
+
+  <div id="viewThr" class="view" hidden>
+    <section>
+      <p class="lbl"><span>Thread standard</span></p>
+      <div class="keys tstd" id="thrStd"></div>
+    </section>
+    <section class="card">
+      <h3><span id="thrTitle"></span><small id="thrForm2"></small></h3>
+      <div class="body">
+        <div id="thrInfo" class="facts" style="margin:0"></div>
+        <p class="mono-note" id="thrNote" style="margin:0"></p>
+        <p class="mono-note" style="margin:0">Tap a row to build its program below.</p>
+        <div class="tw" id="thrChart"></div>
+      </div>
+    </section>
+    <section class="card">
+      <h3><span>Sample program</span><small id="thrSel"></small></h3>
+      <div class="body">
+        <div class="grid" id="thrForm"></div>
+        <div id="thrOut" style="display:flex;flex-direction:column;gap:12px"></div>
+      </div>
+    </section>
+    <section class="card">
+      <h3><span>Taper thread standards</span><small>At a glance</small></h3>
+      <div class="body">
+        <div class="tw"><table class="t chart"><thead><tr><th>Standard</th><th>Angle</th><th>Pitch</th><th>Taper</th><th>Seals by</th></tr></thead><tbody>
+          <tr><td>NPT</td><td>60°</td><td>27 – 8 TPI</td><td>1 : 16</td><td>Sealant or tape</td></tr>
+          <tr><td>NPTF (dry seal)</td><td>60°</td><td>27 – 8 TPI</td><td>1 : 16</td><td>Crest and root contact</td></tr>
+          <tr><td>BSPT  R / Rc</td><td>55°</td><td>28 – 11 TPI</td><td>1 : 16</td><td>Sealant or tape</td></tr>
+          <tr><td>BSPP  G</td><td>55°</td><td>28 – 11 TPI</td><td>parallel</td><td>Washer or O-ring</td></tr>
+          <tr><td>API round</td><td>60°</td><td>8 or 10 TPI</td><td>1 : 16</td><td>Thread compound</td></tr>
+          <tr><td>Metric taper</td><td>60°</td><td>metric</td><td>1 : 16</td><td>Sealant</td></tr>
+        </tbody></table></div>
+        <p class="mono-note" style="margin:0">A 1 : 16 taper changes the diameter by 0.0625 mm per mm of length (¾ inch per foot). Half angle 1° 47′ 24″. On the lathe the taper goes in G76 / G92 as R = radius difference from start to end point; in CYCLE97 as two diameters DM1 and DM2.</p>
+      </div>
+    </section>
+  </div>
+
+  <div id="viewGeo" class="view" hidden></div>
+
+  <div id="viewComp" class="view" hidden>
+    <section class="card">
+      <h3><span>Tool nose radius compensation</span><small>Lathe · G41 / G42 / G40</small></h3>
+      <div class="body">
+        <div class="split">
+          <svg class="tipdia" viewBox="0 0 250 210" role="img" aria-label="Imaginary tool tip numbers 0 to 9 around the insert nose">
+            <rect x="85" y="55" width="80" height="80" class="sq"/>
+            <circle cx="125" cy="95" r="40" class="nose"/>
+            <g class="pts"><circle cx="85" cy="55" r="4"/><circle cx="165" cy="55" r="4"/><circle cx="85" cy="135" r="4"/><circle cx="165" cy="135" r="4"/><circle cx="125" cy="55" r="4"/><circle cx="125" cy="135" r="4"/><circle cx="85" cy="95" r="4"/><circle cx="165" cy="95" r="4"/><circle cx="125" cy="95" r="3"/></g>
+            <g class="num"><text x="70" y="47">2</text><text x="125" y="44">6</text><text x="180" y="47">1</text><text x="68" y="100">7</text><text x="125" y="100" class="c">0/9</text><text x="182" y="100">5</text><text x="70" y="157">3</text><text x="125" y="160">8</text><text x="180" y="157">4</text></g>
+            <text x="18" y="70" class="hl">ID</text><text x="18" y="84" class="sm">boring</text><text x="18" y="98" class="sm">tip 2</text>
+            <text x="18" y="150" class="hl">OD</text><text x="18" y="164" class="sm">turning</text><text x="18" y="178" class="sm">tip 3</text>
+            <g class="ax"><line x1="200" y1="195" x2="240" y2="195"/><line x1="200" y1="195" x2="200" y2="160"/><text x="226" y="186">+Z</text><text x="206" y="166">+X</text></g>
+          </svg>
+          <ul class="notes" style="margin:0">
+            <li><b>G42</b> for OD turning toward the chuck, <b>G41</b> for boring. <b>G40</b> cancels.</li>
+            <li>Put the nose radius in the <b>R</b> column and the tip number in the <b>T</b> column of the geometry or wear offset.</li>
+            <li>Switch it on and off on a G00 or G01 move that is longer than the nose radius, never on G02 / G03.</li>
+            <li>Without it, every taper, chamfer and radius is cut with the nose radius error. Straight Z and X cuts are not affected.</li>
+            <li>Sinumerik stores the tip as <b>cutting edge position</b> in the tool data (same 1 – 9 numbering) and uses the same G41 / G42 / G40.</li>
+          </ul>
+        </div>
+        <p class="mono-note" style="margin:0">Diagram drawn with +X up and +Z to the right, as seen on a rear (slant-bed) turret. Confirm the numbering for your machine in its offset manual.</p>
+      </div>
+    </section>
+    <div id="compCalcs" class="view"></div>
+    <section class="card">
+      <h3><span>Cutter radius compensation</span><small>Milling · G41 / G42 / G40</small></h3>
+      <div class="body">
+        <div class="split">
+          <svg class="tipdia" viewBox="0 0 260 140" role="img" aria-label="G41 keeps the tool left of the path, G42 right of the path">
+            <line x1="20" y1="70" x2="235" y2="70" class="path"/><polygon points="235,63 250,70 235,77" class="arrow"/>
+            <circle cx="130" cy="44" r="20" class="tool"/><circle cx="130" cy="96" r="20" class="tool2"/>
+            <text x="165" y="40" class="hl">G41</text><text x="165" y="54" class="sm">tool left · climb</text>
+            <text x="165" y="104" class="hl2">G42</text><text x="165" y="118" class="sm">tool right · conventional</text>
+            <text x="20" y="62" class="sm">programmed path</text>
+          </svg>
+          <ul class="notes" style="margin:0">
+            <li>Program the part outline. The control offsets the tool by the radius in the <b>D</b> register.</li>
+            <li><b>G41</b> with M03 gives climb milling: CW around an outside contour, CCW inside a pocket.</li>
+            <li>Start and cancel on a straight G00 / G01 move in the XY plane, longer than the tool radius, away from the part.</li>
+            <li>Inside corners smaller than the tool radius cause an overcut alarm. Avoid more than one block without XY motion while compensation is on.</li>
+            <li>Sinumerik: the D number comes with the tool (T1 D1). <b>NORM</b> / <b>KONT</b> choose the approach behaviour.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+    <div id="compCalcs2" class="view"></div>
+  </div>
+
+  <div id="viewAlm" class="view" hidden>
+    <section>
+      <div class="inp search"><input id="aq" type="search" placeholder="Search: number, word or address (020, arc, G41, DO, P71…)" autocomplete="off"></div>
+      <div class="cats" id="almCats"></div>
+      <p class="mono-note" id="almNote"></p>
+    </section>
+    <div id="almList" class="view" style="gap:8px"></div>
+  </div>
+
+  <div id="viewAbout" class="view" hidden>
+    <section class="card lockcard" id="lockCard" hidden>
+      <h3><span>Trial ended</span><small>License needed</small></h3>
+      <div class="body"><p style="margin:0;max-width:60ch">Your 1-day free trial of CNC Machine Application Builder has ended. Enter your email id and license key below to keep using all tools. To get a license, use Request a license at the bottom of this page.</p></div>
+    </section>
+    <section class="card">
+      <h3><span>CNC Machine Application Builder</span><small>Version 1.0</small></h3>
+      <div class="body">
+        <p style="margin:0;max-width:65ch">A shop-floor toolkit for FANUC 0i-F, Mitsubishi M70 / M80 and Sinumerik 828D: macro programs, calculators, canned cycles, thread charts, angle and radius solving, tool compensation, programming alarms and the macro variable map.</p>
+        <div class="res">
+          <div><small>Developed by</small><b style="font-size:22px">Marvel Tech</b></div>
+          <div><small>Controls</small><b style="font-size:22px">3</b></div>
+          <div><small>Programs</small><b style="font-size:22px">8</b></div>
+          <div><small>Thread standards</small><b style="font-size:22px">11</b></div>
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <h3><span>Contact</span><small>Support and licensing</small></h3>
+      <div class="body">
+        <div class="contact"><small>Email id</small><span id="cp-email" class="mail">marveltech.cbe0270@gmail.com</span><button class="btn" data-copy="email">Copy</button></div>
+      </div>
+    </section>
+    <section class="card">
+      <h3><span>License</span><span class="lic" id="licState">Not activated</span></h3>
+      <div class="body">
+        <div class="grid" style="grid-template-columns:minmax(0,1fr)">
+          <div class="field"><label for="licName">Your email id</label><div class="inp"><input id="licName" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="you@example.com" style="font-family:var(--f-body)"></div></div>
+          <div class="field"><label for="licKey">License key</label><div class="inp"><input id="licKey" type="text" autocapitalize="characters" spellcheck="false" placeholder="MT-XXXX-XXXX-XXXX"></div></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="licAct">Activate</button><button class="btn ghost" id="licDel" style="color:var(--muted);border-color:var(--line)">Remove license</button></div>
+        <p class="mono-note" id="licMsg" style="margin:0">Enter the email id you registered with Marvel Tech and the license key you received. No key yet? Use Request a license below.</p>
+      </div>
+    </section>
+    <section class="card" id="reqCard">
+      <h3><span>Request a license</span><small>Sent by email to Marvel Tech</small></h3>
+      <div class="body">
+        <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,14rem),1fr))">
+          <div class="field"><label for="rqEmail">Your email id (the key is made for this)</label><div class="inp"><input id="rqEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="you@example.com" style="font-family:var(--f-body)"></div></div>
+          <div class="field"><label for="rqName">Name</label><div class="inp"><input id="rqName" type="text" autocomplete="name" placeholder="Your name" style="font-family:var(--f-body)"></div></div>
+          <div class="field"><label for="rqCo">Company</label><div class="inp"><input id="rqCo" type="text" autocomplete="organization" placeholder="Company name" style="font-family:var(--f-body)"></div></div>
+          <div class="field"><label for="rqPh">Phone</label><div class="inp"><input id="rqPh" type="tel" inputmode="tel" autocomplete="tel" placeholder="Mobile number" style="font-family:var(--f-body)"></div></div>
+        </div>
+        <pre class="msgbox" id="cp-req"></pre>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <a class="btn" id="rqSend" href="#" target="_blank" rel="noopener" style="text-decoration:none">Send request by email</a>
+          <button class="btn ghost" data-copy="req" style="color:var(--ink);border-color:var(--line)">Copy request</button>
+        </div>
+        <p class="mono-note" style="margin:0" id="rqMsg">Tap Send to open your email app with this request filled in. If no email app opens, tap Copy request and email it to marveltech.cbe0270@gmail.com. Your license key will be sent back to your email id.</p>
+      </div>
+    </section>
+  </div>
+
+  <div id="viewVar" class="view" hidden>
+    <section>
+      <div class="inp search"><input id="vq" type="search" placeholder="Search: G54, alarm, wear, #5221, part count…" autocomplete="off"></div>
+      <p class="legend"><span class="tag keep">Kept</span> survives power off <span class="tag clear">Cleared</span> lost at power off or reset <span class="tag ro">Read</span> read only <span class="tag rw">R/W</span> read and write</p>
+    </section>
+    <div id="varGroups" class="view"></div>
+    <section id="argSec">
+      <p class="lbl"><span id="argTitle">G65 arguments</span></p>
+      <div class="panel" id="argBox"></div>
+    </section>
+    <section>
+      <p class="lbl"><span>Operators &amp; functions</span></p>
+      <div class="panel" id="opBox"></div>
+    </section>
+  </div>
+
+  <div id="viewGen" class="view">
+  <section>
+    <p class="lbl"><span>Program</span></p>
+    <div class="keys c2" id="tplKeys"></div>
+  </section>
+
+  <section>
+    <p class="lbl"><span>Values</span><button class="btn ghost" id="resetBtn" style="color:var(--muted);border-color:var(--line);padding:2px 10px;font-size:12px">Defaults</button></p>
+    <div class="panel">
+      <div class="grid" id="form"></div>
+      <div class="facts" id="facts"></div>
+    </div>
+  </section>
+
+  <section id="prevSec">
+    <p class="lbl"><span>Toolpath preview</span><span id="prevNote"></span></p>
+    <canvas id="cv" aria-label="Toolpath preview"></canvas>
+  </section>
+
+  <section>
+    <p class="lbl"><span>Generated program</span><b id="lineCount"></b></p>
+    <div class="code">
+      <div class="codebar"><span id="fname"></span><button class="btn" id="copyBtn">Copy</button></div>
+      <pre id="out"></pre>
+    </div>
+  </section>
+
+  <section>
+    <p class="lbl"><span>Call from main program</span></p>
+    <div class="panel">
+      <div class="call"><code id="callLine"></code><button class="btn" id="copyCall" style="padding:6px 12px;font-size:13px">Copy</button></div>
+      <ul class="notes" id="notes"></ul>
+    </div>
+  </section>
+  </div>
+</div>
+<div class="toast" id="toast" role="status">Copied</div>
+
+<script>
+const CTRL = {
+  fanuc:   {name:'FANUC',      sub:'0i-F / 0i-MF'},
+  mits:    {name:'MITSUBISHI', sub:'M70 / M80'},
+  siemens: {name:'SINUMERIK',  sub:'828D'}
+};
+
+/* number formats */
+const F  = n => { let s = String(+(+n).toFixed(4)); if(!s.includes('.')) s += '.'; return s; };  // Fanuc/Mitsubishi coordinate
+const S  = n => String(+(+n).toFixed(4));                                                    // Siemens
+const I  = n => String(Math.round(n));
+const P2 = n => String(Math.round(n)).padStart(2,'0');
+const isF = c => c !== 'siemens';
+
+const TPL = {
+  toollife: {
+    name:'Tool life', sub:'Count parts per tool, warn, then stop',
+    fields:[
+      {id:'prog', label:'Program no.', def:9010, int:1, min:1},
+      {id:'tool', label:'Tool no.', def:5, int:1, min:0},
+      {id:'life', label:'Life limit', unit:'pcs', def:500, int:1, min:1},
+      {id:'warn', label:'Warn at', unit:'%', def:90, int:1, min:0},
+      {id:'var',  label:'Counter variable', def:{fanuc:510,mits:510,siemens:110}, perCtrl:1, varPrefix:1, int:1, min:0},
+      {id:'alarm',label:'Alarm no. (#3000)', def:1, int:1, min:1, only:['fanuc','mits']}
+    ],
+    gen(c,v){
+      const t = isF(c) ? 'T'+P2(v.tool) : 'T'+I(v.tool);
+      const w = Math.round(v.life*v.warn/100), hasW = w>0 && w<v.life;
+      const facts = [`Warn at part ${hasW?w:'—'}`, `Stop at part ${v.life}`];
+      if(isF(c)){
+        const r = '#'+v.var, L=[];
+        L.push(`O${I(v.prog)} (${t} TOOL LIFE COUNTER)`, `(LIMIT ${v.life} PCS${hasW?' - WARN AT '+w:''})`, `${r}=${r}+1`, `IF[${r}GE${v.life}]GOTO900`);
+        if(hasW){
+          L.push(`IF[${r}NE${w}]GOTO100`);
+          L.push(c==='fanuc' ? `#3006=1(${t} ${v.warn}PCT LIFE CHECK)` : `M00 (${t} ${v.warn}PCT LIFE - CHECK TOOL)`);
+        }
+        L.push('N100 M99', `N900 #3000=${v.alarm}(${t} LIFE OVER)`, 'M99');
+        return {L, facts, call:`M98 P${I(v.prog)}`, file:`O${I(v.prog)}`, notes:[
+          `After changing the tool, set ${r}=0 on the macro variable screen. The alarm repeats every cycle until you do.`,
+          c==='fanuc' ? `#500–#999 keep their value at power off. O9000–O9999 are edit-protected by parameter 3202 bit NE9; switch it off to load or edit.`
+                      : `#500-series common variables keep their value at power off. Check ${r} is unused on your machine before loading.`,
+          c==='fanuc' ? `Alarm shows as MC${3000+v.alarm}. #3006 stops with a message; cycle start continues.` : `Alarm shows as #3000 alarm ${v.alarm}. The warning stops on M00; cycle start continues.`
+        ]};
+      }
+      const r='R'+v.var, name=`TOOL_LIFE_${I(v.prog)}`, L=[];
+      L.push(`; ${name}.SPF`, `; ${t} TOOL LIFE COUNTER - LIMIT ${v.life} PCS${hasW?', WARN AT '+w:''}`, `${r}=${r}+1`, `IF ${r}>=${v.life} GOTOF LIFE_OVER`);
+      if(hasW) L.push(`IF ${r}<>${w} GOTOF DONE`, `MSG("${t} ${v.warn}% LIFE - CHECK TOOL")`, 'M0', 'MSG()');
+      L.push('DONE:', 'M17', 'LIFE_OVER:', `MSG("${t} LIFE OVER - CHANGE TOOL, SET ${r}=0")`, 'M0', 'STOPRE', `IF ${r}>=${v.life} GOTOB LIFE_OVER`, 'MSG()', 'M17');
+      return {L, facts, call:name, file:name+'.SPF', notes:[
+        `After changing the tool, set ${r}=0 under Parameter › R variables, then press cycle start. The program holds on M0 until the counter is reset.`,
+        `R parameters keep their value at power off. Check ${r} is not used by another program.`,
+        `STOPRE makes the control re-read ${r} after the stop, so the reset is seen.`
+      ]};
+    }
+  },
+
+  parts: {
+    name:'Batch counter', sub:'Stop when a batch quantity is done',
+    fields:[
+      {id:'prog', label:'Program no.', def:9020, int:1, min:1},
+      {id:'qty',  label:'Batch quantity', unit:'pcs', def:100, int:1, min:1},
+      {id:'var',  label:'Counter variable', def:{fanuc:520,mits:520,siemens:120}, perCtrl:1, varPrefix:1, int:1, min:0}
+    ],
+    gen(c,v){
+      const facts=[`Stops every ${v.qty} parts`, 'Counter resets itself'];
+      if(isF(c)){
+        const r='#'+v.var;
+        const L=[`O${I(v.prog)} (BATCH COUNTER - ${v.qty} PCS)`, `${r}=${r}+1`, `IF[${r}LT${v.qty}]GOTO100`, `${r}=0`,
+          c==='fanuc' ? `#3006=1(BATCH ${v.qty} PCS DONE)` : `M00 (BATCH ${v.qty} PCS DONE)`, 'N100 M99'];
+        return {L, facts, call:`M98 P${I(v.prog)}`, file:`O${I(v.prog)}`, notes:[
+          `${r} shows how many parts of the current batch are done. Set it to 0 to start a new batch early.`,
+          `Call it once per part, just before M30.`,
+          c==='fanuc' ? `The machine part counter (#3901) still counts on M30 as normal.` : `The machine part counter still counts as normal.`
+        ]};
+      }
+      const r='R'+v.var, name=`BATCH_${I(v.prog)}`;
+      const L=[`; ${name}.SPF`, `; BATCH COUNTER - ${v.qty} PCS`, `${r}=${r}+1`, `IF ${r}<${v.qty} GOTOF DONE`, `${r}=0`, `MSG("BATCH OF ${v.qty} DONE - PRESS CYCLE START")`, 'M0', 'MSG()', 'DONE:', 'M17'];
+      return {L, facts, call:name, file:name+'.SPF', notes:[
+        `${r} shows how many parts of the current batch are done. Set it to 0 to start a new batch early.`,
+        `Call it once per part, just before M30.`
+      ]};
+    }
+  },
+
+  bolt: {
+    name:'Bolt hole circle', sub:'Drill or peck holes on a PCD',
+    fields:[
+      {id:'prog', label:'Program no.', def:9030, int:1, min:1},
+      {id:'cx', label:'Centre X', unit:'mm', def:0},
+      {id:'cy', label:'Centre Y', unit:'mm', def:0},
+      {id:'pcd', label:'PCD', unit:'mm', def:100, min:0.001},
+      {id:'holes', label:'No. of holes', def:6, int:1, min:1},
+      {id:'start', label:'Start angle', unit:'°', def:0},
+      {id:'depth', label:'Hole depth', unit:'mm', def:15, min:0.001},
+      {id:'rpl', label:'R plane above top', unit:'mm', def:2, min:0},
+      {id:'cyc', label:'Cycle', type:'select', def:'peck', opts:[['drill','Drill (G81)'],['peck','Peck (G83)']]},
+      {id:'peck', label:'Peck depth', unit:'mm', def:3, min:0.001, showIf:v=>v.cyc==='peck'},
+      {id:'feed', label:'Feed', unit:'mm/min', def:120, min:0.001},
+      {id:'rpm', label:'Spindle', unit:'rpm', def:1200, int:1, min:1},
+      {id:'clr', label:'Clearance Z', unit:'mm', def:50, min:0}
+    ],
+    gen(c,v){
+      const R=v.pcd/2, peck=v.cyc==='peck';
+      const pitch=360/v.holes, chord=2*R*Math.sin(Math.PI/v.holes);
+      const facts=[`Pitch ${+pitch.toFixed(3)}°`, `Hole spacing ${+chord.toFixed(3)} mm`, `Radius ${+R.toFixed(3)} mm`];
+      if(isF(c)){
+        const g = peck ? 'G83' : 'G81';
+        const L=[`O${I(v.prog)} (BOLT HOLE CIRCLE)`, `(PCD ${S(v.pcd)} - ${v.holes} HOLES)`,
+          `#101=${F(v.cx)} (CENTRE X)`, `#102=${F(v.cy)} (CENTRE Y)`, `#103=${F(R)} (RADIUS = PCD/2)`, `#104=${v.holes} (NO OF HOLES)`,
+          `#105=${F(v.start)} (START ANGLE)`, `#106=${F(-v.depth)} (HOLE DEPTH Z)`, `#107=${F(v.rpl)} (R PLANE)`, `#108=${F(v.feed)} (FEED)`];
+        if(peck) L.push(`#109=${F(v.peck)} (PECK DEPTH Q)`);
+        L.push('#110=0 (HOLE COUNTER)', `S${I(v.rpm)} M03`, `G00 Z${F(v.clr)}`, 'WHILE[#110LT#104]DO1', '#111=#105+#110*360/#104', '#112=#101+#103*COS[#111]', '#113=#102+#103*SIN[#111]',
+          `G99 ${g} X#112 Y#113 Z#106 R#107${peck?' Q#109':''} F#108`, '#110=#110+1', 'END1', 'G80', `G00 Z${F(v.clr)}`, 'M99');
+        return {L, facts, call:`M98 P${I(v.prog)}`, file:`O${I(v.prog)}`, notes:[
+          `Select the tool, work offset (G54) and length offset (G43 H) in the main program before calling.`,
+          `Z0 is the top face. Angles are measured counter-clockwise from +X.`,
+          `#101–#113 are volatile common variables; check no other program uses them while this runs.`
+        ]};
+      }
+      const name=`BOLT_CIRCLE_${I(v.prog)}`;
+      const cyc = peck ? `CYCLE83(${S(v.clr)},0,${S(v.rpl)},${S(-v.depth)},,${S(-v.peck)},,${S(v.peck)},0,0,1,1)` : `CYCLE81(${S(v.clr)},0,${S(v.rpl)},${S(-v.depth)})`;
+      const L=[`; ${name}.SPF`, `; PCD ${S(v.pcd)} - ${v.holes} HOLES`,
+        `R1=${S(v.cx)} ; CENTRE X`, `R2=${S(v.cy)} ; CENTRE Y`, `R3=${S(R)} ; RADIUS = PCD/2`, `R4=${v.holes} ; NO OF HOLES`, `R5=${S(v.start)} ; START ANGLE`,
+        'R10=0 ; HOLE COUNTER', `S${I(v.rpm)} M3`, `G0 Z${S(v.clr)}`, `F${S(v.feed)}`, 'WHILE R10<R4', 'R11=R5+R10*360/R4', 'G0 X=R1+R3*COS(R11) Y=R2+R3*SIN(R11)', cyc, 'R10=R10+1', 'ENDWHILE', `G0 Z${S(v.clr)}`, 'M17'];
+      return {L, facts, call:name, file:name+'.SPF', notes:[
+        `Select the tool, D offset and work offset (G54) in the main program before calling.`,
+        peck ? `CYCLE83 order used: RTP, RFP, SDIS, DP, DPR, FDEP, FDPR, DAM, DTB, DTS, FRF, VARI (VARI=1 retracts to clear chips). Compare with the cycle screen on your 828D software version.`
+             : `CYCLE81 order used: RTP (clearance), RFP (top face 0), SDIS (safety), DP (final depth).`,
+        `Z0 is the top face. Angles are measured counter-clockwise from +X.`
+      ]};
+    }
+  },
+
+  face: {
+    name:'Face milling', sub:'Zig-zag facing in multiple depths',
+    fields:[
+      {id:'prog', label:'Program no.', def:9040, int:1, min:1},
+      {id:'x0', label:'X start (left)', unit:'mm', def:0},
+      {id:'y0', label:'Y start (front)', unit:'mm', def:0},
+      {id:'lx', label:'Length in X', unit:'mm', def:200, min:0.001},
+      {id:'ly', label:'Width in Y', unit:'mm', def:100, min:0.001},
+      {id:'dia', label:'Cutter dia', unit:'mm', def:50, min:0.001},
+      {id:'step', label:'Stepover', unit:'% dia', def:70, min:1, max:100},
+      {id:'total', label:'Total depth', unit:'mm', def:1, min:0.001},
+      {id:'doc', label:'Depth per pass', unit:'mm', def:0.5, min:0.001},
+      {id:'feed', label:'Feed', unit:'mm/min', def:800, min:0.001},
+      {id:'rpm', label:'Spindle', unit:'rpm', def:2000, int:1, min:1},
+      {id:'safe', label:'Safe Z', unit:'mm', def:5, min:0}
+    ],
+    plan(v){
+      const r=v.dia/2, st=+(v.dia*v.step/100).toFixed(3), ys=[];
+      for(let y=v.y0-r+st; (y-st) < v.y0+v.ly-r - 1e-9 && ys.length<500; y+=st) ys.push(y);
+      return {r, st, ys, zp: Math.ceil(v.total/v.doc - 1e-9)};
+    },
+    gen(c,v){
+      const {r, st, ys, zp} = this.plan(v);
+      const facts=[`Stepover ${S(st)} mm`, `${ys.length} pass${ys.length>1?'es':''} per layer`, `${zp} layer${zp>1?'s':''} in Z`];
+      if(isF(c)){
+        const L=[`O${I(v.prog)} (ZIGZAG FACE MILL)`, `(AREA ${S(v.lx)} X ${S(v.ly)} - CUTTER D${S(v.dia)})`,
+          `#101=${F(v.x0)} (X START)`, `#102=${F(v.y0)} (Y START)`, `#103=${F(v.lx)} (LENGTH IN X)`, `#104=${F(v.ly)} (WIDTH IN Y)`,
+          `#105=${F(r)} (CUTTER RADIUS)`, `#106=${F(st)} (STEPOVER)`, `#107=${F(v.total)} (TOTAL DEPTH)`, `#108=${F(v.doc)} (DEPTH PER PASS)`,
+          `#109=${F(v.feed)} (FEED)`, `#110=${F(v.safe)} (SAFE Z)`, '#120=0 (CURRENT Z)', `S${I(v.rpm)} M03`, 'G00 Z#110',
+          'WHILE[#120GT[0.001-#107]]DO1', '#120=#120-#108', 'IF[#120GE[0-#107]]GOTO10', '#120=0-#107',
+          'N10 #121=#102-#105+#106 (FIRST PASS Y)', '#122=1 (DIRECTION +X)', 'G00 X[#101-#105-5.] Y#121', 'G01 Z#120 F[#109/2]',
+          'WHILE[[#121-#106]LT[#102+#104-#105]]DO2', 'IF[#122EQ1]GOTO20', 'G01 X[#101-#105-5.] F#109', 'GOTO30',
+          'N20 G01 X[#101+#103+#105+5.] F#109', 'N30 #121=#121+#106', '#122=0-#122', 'G01 Y#121', 'END2', 'G00 Z#110', 'END1', 'M99'];
+        return {L, facts, call:`M98 P${I(v.prog)}`, file:`O${I(v.prog)}`, notes:[
+          `Z0 is the finished top before facing; the cutter goes down to Z-${S(v.total)}. Every plunge happens 5 mm outside the part in X.`,
+          `Select the tool, work offset and G43 length offset in the main program before calling.`,
+          `Uses #101–#122 as working variables.`
+        ]};
+      }
+      const name=`FACE_MILL_${I(v.prog)}`;
+      const L=[`; ${name}.SPF`, `; AREA ${S(v.lx)} X ${S(v.ly)} - CUTTER D${S(v.dia)}`,
+        `R1=${S(v.x0)} ; X START`, `R2=${S(v.y0)} ; Y START`, `R3=${S(v.lx)} ; LENGTH IN X`, `R4=${S(v.ly)} ; WIDTH IN Y`,
+        `R5=${S(r)} ; CUTTER RADIUS`, `R6=${S(st)} ; STEPOVER`, `R7=${S(v.total)} ; TOTAL DEPTH`, `R8=${S(v.doc)} ; DEPTH PER PASS`,
+        `R9=${S(v.feed)} ; FEED`, `R10=${S(v.safe)} ; SAFE Z`, 'R20=0 ; CURRENT Z', `S${I(v.rpm)} M3`, 'G0 Z=R10',
+        'WHILE R20>(0.001-R7)', 'R20=R20-R8', 'IF R20<(0-R7)', 'R20=0-R7', 'ENDIF',
+        'R21=R2-R5+R6 ; FIRST PASS Y', 'R22=1 ; DIRECTION +X', 'G0 X=R1-R5-5 Y=R21', 'G1 Z=R20 F=R9/2',
+        'WHILE (R21-R6)<(R2+R4-R5)', 'IF R22==1', 'G1 X=R1+R3+R5+5 F=R9', 'ELSE', 'G1 X=R1-R5-5 F=R9', 'ENDIF',
+        'R21=R21+R6', 'R22=0-R22', 'G1 Y=R21', 'ENDWHILE', 'G0 Z=R10', 'ENDWHILE', 'M17'];
+      return {L, facts, call:name, file:name+'.SPF', notes:[
+        `Z0 is the finished top before facing; the cutter goes down to Z-${S(v.total)}. Every plunge happens 5 mm outside the part in X.`,
+        `Select the tool, D offset and work offset in the main program before calling.`,
+        `Uses R1–R22 as working variables.`
+      ]};
+    }
+  },
+
+  grid: {
+    name:'Hole grid', sub:'Drill a rectangular pattern of holes',
+    fields:[
+      {id:'prog', label:'Program no.', def:9050, int:1, min:1},
+      {id:'x0', label:'First hole X', unit:'mm', def:0},
+      {id:'y0', label:'First hole Y', unit:'mm', def:0},
+      {id:'cols', label:'Holes in X', def:4, int:1, min:1},
+      {id:'rows', label:'Rows in Y', def:3, int:1, min:1},
+      {id:'dx', label:'Pitch X', unit:'mm', def:25},
+      {id:'dy', label:'Pitch Y', unit:'mm', def:20},
+      {id:'depth', label:'Hole depth', unit:'mm', def:12, min:0.001},
+      {id:'rpl', label:'R plane above top', unit:'mm', def:2, min:0},
+      {id:'cyc', label:'Cycle', type:'select', def:'drill', opts:[['drill','Drill (G81)'],['peck','Peck (G83)']]},
+      {id:'peck', label:'Peck depth', unit:'mm', def:3, min:0.001, showIf:v=>v.cyc==='peck'},
+      {id:'feed', label:'Feed', unit:'mm/min', def:150, min:0.001},
+      {id:'rpm', label:'Spindle', unit:'rpm', def:1500, int:1, min:1},
+      {id:'clr', label:'Clearance Z', unit:'mm', def:50, min:0}
+    ],
+    order(v){ const p=[]; for(let r=0;r<v.rows&&r<200;r++) for(let k=0;k<v.cols&&k<200;k++){ const c=r%2?v.cols-1-k:k; p.push([v.x0+c*v.dx, v.y0+r*v.dy]); } return p; },
+    gen(c,v){
+      const peck=v.cyc==='peck';
+      const facts=[`${v.cols*v.rows} holes`, `Span ${S(Math.abs(v.dx*(v.cols-1)))} × ${S(Math.abs(v.dy*(v.rows-1)))} mm`, 'Rows alternate direction'];
+      if(isF(c)){
+        const L=[`O${I(v.prog)} (HOLE GRID)`, `(${v.cols} X ${v.rows} HOLES)`,
+          `#101=${F(v.x0)} (FIRST HOLE X)`, `#102=${F(v.y0)} (FIRST HOLE Y)`, `#103=${v.cols} (HOLES IN X)`, `#104=${v.rows} (ROWS IN Y)`,
+          `#105=${F(v.dx)} (PITCH X)`, `#106=${F(v.dy)} (PITCH Y)`, `#107=${F(-v.depth)} (HOLE DEPTH Z)`, `#108=${F(v.rpl)} (R PLANE)`, `#109=${F(v.feed)} (FEED)`];
+        if(peck) L.push(`#110=${F(v.peck)} (PECK DEPTH Q)`);
+        L.push('#111=0 (ROW COUNTER)', `S${I(v.rpm)} M03`, `G00 Z${F(v.clr)}`, 'WHILE[#111LT#104]DO1', '#112=0 (COLUMN COUNTER)', 'WHILE[#112LT#103]DO2', '#113=#112',
+          'IF[[#111-FIX[#111/2]*2]EQ0]GOTO10', '#113=#103-1-#112 (ODD ROW RUNS BACK)',
+          `N10 G99 ${peck?'G83':'G81'} X[#101+#113*#105] Y[#102+#111*#106] Z#107 R#108${peck?' Q#110':''} F#109`,
+          '#112=#112+1', 'END2', '#111=#111+1', 'END1', 'G80', `G00 Z${F(v.clr)}`, 'M99');
+        return {L, facts, call:`M98 P${I(v.prog)}`, file:`O${I(v.prog)}`, notes:[
+          `Hole 1 is the first hole X/Y. Use a negative pitch to step in −X or −Y.`,
+          `Rows run back and forth to cut rapid travel.`,
+          `Select the tool, work offset and G43 length offset in the main program before calling.`
+        ]};
+      }
+      const name=`HOLE_GRID_${I(v.prog)}`;
+      const cyc = peck ? `CYCLE83(${S(v.clr)},0,${S(v.rpl)},${S(-v.depth)},,${S(-v.peck)},,${S(v.peck)},0,0,1,1)` : `CYCLE81(${S(v.clr)},0,${S(v.rpl)},${S(-v.depth)})`;
+      const L=[`; ${name}.SPF`, `; ${v.cols} X ${v.rows} HOLES`,
+        `R1=${S(v.x0)} ; FIRST HOLE X`, `R2=${S(v.y0)} ; FIRST HOLE Y`, `R3=${v.cols} ; HOLES IN X`, `R4=${v.rows} ; ROWS IN Y`, `R5=${S(v.dx)} ; PITCH X`, `R6=${S(v.dy)} ; PITCH Y`,
+        'R11=0 ; ROW COUNTER', `S${I(v.rpm)} M3`, `G0 Z${S(v.clr)}`, `F${S(v.feed)}`, 'WHILE R11<R4', 'R12=0 ; COLUMN COUNTER', 'WHILE R12<R3', 'R13=R12',
+        'IF (R11 MOD 2)==1', 'R13=R3-1-R12 ; ODD ROW RUNS BACK', 'ENDIF', 'G0 X=R1+R13*R5 Y=R2+R11*R6', cyc, 'R12=R12+1', 'ENDWHILE', 'R11=R11+1', 'ENDWHILE', `G0 Z${S(v.clr)}`, 'M17'];
+      return {L, facts, call:name, file:name+'.SPF', notes:[
+        `Hole 1 is the first hole X/Y. Use a negative pitch to step in −X or −Y.`,
+        `Rows run back and forth to cut rapid travel.`,
+        `Select the tool, D offset and work offset in the main program before calling.`
+      ]};
+    }
+  },
+
+  pocket: {
+    name:'Rectangular pocket', sub:'Clear a pocket from the centre out',
+    fields:[
+      {id:'prog', label:'Program no.', def:9060, int:1, min:1},
+      {id:'cx', label:'Pocket centre X', unit:'mm', def:0},
+      {id:'cy', label:'Pocket centre Y', unit:'mm', def:0},
+      {id:'lx', label:'Length in X', unit:'mm', def:80, min:0.001},
+      {id:'ly', label:'Width in Y', unit:'mm', def:50, min:0.001},
+      {id:'dia', label:'Cutter dia', unit:'mm', def:16, min:0.001},
+      {id:'step', label:'Stepover', unit:'% dia', def:45, min:5, max:50},
+      {id:'total', label:'Pocket depth', unit:'mm', def:6, min:0.001},
+      {id:'doc', label:'Depth per pass', unit:'mm', def:2, min:0.001},
+      {id:'feed', label:'Feed', unit:'mm/min', def:600, min:0.001},
+      {id:'rpm', label:'Spindle', unit:'rpm', def:3000, int:1, min:1},
+      {id:'safe', label:'Safe Z', unit:'mm', def:5, min:0}
+    ],
+    check(v){ return (v.lx<=v.dia||v.ly<=v.dia) ? ['Cutter dia must be smaller than both pocket length and width'] : []; },
+    plan(v){
+      const r=v.dia/2, st=+(v.dia*v.step/100).toFixed(3), ax=v.lx/2-r, ay=v.ly/2-r;
+      const J=Math.floor(Math.min(ax,ay)/st-1e-6);
+      return {r, st, ax, ay, J, zp:Math.ceil(v.total/v.doc-1e-9)};
+    },
+    gen(c,v){
+      const p=this.plan(v);
+      const facts=[`Stepover ${S(p.st)} mm`, `${p.J+1} ring${p.J?'s':''} per layer`, `${p.zp} layer${p.zp>1?'s':''} in Z`, 'Climb milling'];
+      if(isF(c)){
+        const L=[`O${I(v.prog)} (RECTANGULAR POCKET)`, `(${S(v.lx)} X ${S(v.ly)} DEEP ${S(v.total)} - CUTTER D${S(v.dia)})`,
+          `#101=${F(v.cx)} (POCKET CENTRE X)`, `#102=${F(v.cy)} (POCKET CENTRE Y)`, `#103=${F(p.ax)} (HALF LENGTH - CUTTER RAD)`, `#104=${F(p.ay)} (HALF WIDTH - CUTTER RAD)`,
+          `#105=${F(p.st)} (STEPOVER)`, `#106=${F(v.total)} (POCKET DEPTH)`, `#107=${F(v.doc)} (DEPTH PER PASS)`, `#108=${F(v.feed)} (FEED)`, `#109=${F(v.safe)} (SAFE Z)`,
+          '#120=0 (CURRENT Z)', '#121=#103', 'IF[#104GE#103]GOTO5', '#121=#104', 'N5 #122=FIX[#121/#105-0.000001] (INNER RING)',
+          `S${I(v.rpm)} M03`, 'G00 X#101 Y#102', 'G00 Z#109',
+          'WHILE[#120GT[0.001-#106]]DO1', '#120=#120-#107', 'IF[#120GE[0-#106]]GOTO10', '#120=0-#106',
+          'N10 G00 X#101 Y#102', 'G00 Z[#120+#107+1.]', 'G01 Z#120 F[#108/3] (PLUNGE AT CENTRE)', '#123=#122 (RING COUNTER)',
+          'WHILE[#123GE0]DO2', '#124=#103-#123*#105', '#125=#104-#123*#105',
+          'G01 X[#101+#124] Y[#102-#125] F#108', 'Y[#102+#125]', 'X[#101-#124]', 'Y[#102-#125]', 'X[#101+#124]',
+          '#123=#123-1', 'END2', 'G00 Z#109', 'END1', 'M99'];
+        return {L, facts, call:`M98 P${I(v.prog)}`, file:`O${I(v.prog)}`, notes:[
+          `Plunges at the pocket centre: use a centre-cutting end mill or pre-drill a hole there.`,
+          `Corners come out with the cutter radius (R${S(p.r)}). For a finish pass, run once with length and width reduced by 2× the allowance, then at full size.`,
+          `Z0 is the top face. Uses #101–#125 as working variables.`
+        ]};
+      }
+      const name=`POCKET_${I(v.prog)}`;
+      const L=[`; ${name}.SPF`, `; ${S(v.lx)} X ${S(v.ly)} DEEP ${S(v.total)} - CUTTER D${S(v.dia)}`,
+        `R1=${S(v.cx)} ; POCKET CENTRE X`, `R2=${S(v.cy)} ; POCKET CENTRE Y`, `R3=${S(p.ax)} ; HALF LENGTH - CUTTER RADIUS`, `R4=${S(p.ay)} ; HALF WIDTH - CUTTER RADIUS`,
+        `R5=${S(p.st)} ; STEPOVER`, `R6=${S(v.total)} ; POCKET DEPTH`, `R7=${S(v.doc)} ; DEPTH PER PASS`, `R8=${S(v.feed)} ; FEED`, `R9=${S(v.safe)} ; SAFE Z`,
+        'R20=0 ; CURRENT Z', 'R21=R3', 'IF R4<R3', 'R21=R4', 'ENDIF', 'R22=TRUNC(R21/R5-0.000001) ; INNER RING',
+        `S${I(v.rpm)} M3`, 'G0 X=R1 Y=R2', 'G0 Z=R9',
+        'WHILE R20>(0.001-R6)', 'R20=R20-R7', 'IF R20<(0-R6)', 'R20=0-R6', 'ENDIF',
+        'G0 X=R1 Y=R2', 'G0 Z=R20+R7+1', 'G1 Z=R20 F=R8/3 ; PLUNGE AT CENTRE', 'R23=R22 ; RING COUNTER',
+        'WHILE R23>=0', 'R24=R3-R23*R5', 'R25=R4-R23*R5',
+        'G1 X=R1+R24 Y=R2-R25 F=R8', 'Y=R2+R25', 'X=R1-R24', 'Y=R2-R25', 'X=R1+R24',
+        'R23=R23-1', 'ENDWHILE', 'G0 Z=R9', 'ENDWHILE', 'M17'];
+      return {L, facts, call:name, file:name+'.SPF', notes:[
+        `Plunges at the pocket centre: use a centre-cutting end mill or pre-drill a hole there.`,
+        `Corners come out with the cutter radius (R${S(p.r)}). For a finish pass, run once with length and width reduced by 2× the allowance, then at full size.`,
+        `Z0 is the top face. Uses R1–R25 as working variables.`
+      ]};
+    }
+  },
+
+  thread: {
+    name:'Thread milling', sub:'Internal helical thread, bottom up',
+    fields:[
+      {id:'prog', label:'Program no.', def:9070, int:1, min:1},
+      {id:'cx', label:'Hole centre X', unit:'mm', def:0},
+      {id:'cy', label:'Hole centre Y', unit:'mm', def:0},
+      {id:'major', label:'Thread major dia', unit:'mm', def:20, min:0.001},
+      {id:'pitch', label:'Pitch', unit:'mm', def:1.5, min:0.001},
+      {id:'len', label:'Thread length', unit:'mm', def:15, min:0.001},
+      {id:'cut', label:'Cutter dia', unit:'mm', def:12, min:0.001},
+      {id:'hand', label:'Hand', type:'select', def:'rh', opts:[['rh','Right hand'],['lh','Left hand']]},
+      {id:'feed', label:'Feed at cutting edge', unit:'mm/min', def:300, min:0.001},
+      {id:'rpm', label:'Spindle', unit:'rpm', def:4000, int:1, min:1},
+      {id:'safe', label:'Safe Z', unit:'mm', def:5, min:0}
+    ],
+    plan(v){
+      const minor=v.major-1.0825*v.pitch, Rp=(v.major-v.cut)/2;
+      return {minor, Rp, turns:Math.ceil(v.len/v.pitch-1e-9), cf:+(v.feed*Rp/(v.major/2)).toFixed(1)};
+    },
+    check(v){ const p=this.plan(v); return v.cut>=p.minor ? [`Cutter dia must be smaller than the minor dia (about ${S(+p.minor.toFixed(2))} mm)`] : []; },
+    gen(c,v){
+      const p=this.plan(v), lh=v.hand==='lh', g=lh?'G02':'G03';
+      const tn=`M${S(v.major)}X${S(v.pitch)}${lh?' LH':''}`;
+      const facts=[`Path radius ${S(+p.Rp.toFixed(3))} mm`, `${p.turns} turns`, `Centre feed F${S(p.cf)}`, `Minor ≈ ${S(+p.minor.toFixed(2))} mm`, lh?'Conventional cut':'Climb cut'];
+      if(isF(c)){
+        const L=[`O${I(v.prog)} (THREAD MILL ${tn})`, `(INTERNAL - CUTTER D${S(v.cut)})`,
+          `#101=${F(v.cx)} (HOLE CENTRE X)`, `#102=${F(v.cy)} (HOLE CENTRE Y)`, `#103=${F(+p.Rp.toFixed(4))} (TOOL PATH RADIUS)`, `#104=${F(v.pitch)} (PITCH)`,
+          `#105=${F(-v.len)} (START Z = THREAD BOTTOM)`, `#106=${p.turns} (TURNS)`, `#107=${F(p.cf)} (FEED AT CUTTER CENTRE)`,
+          '#110=0 (TURN COUNTER)', '#111=#105 (CURRENT Z)', `S${I(v.rpm)} M03`, 'G00 X#101 Y#102', `G00 Z${F(v.safe)}`, 'G01 Z#105 F[#107*3]',
+          'G01 X[#101+#103] F[#107/2] (LEAD IN TO WALL)', 'WHILE[#110LT#106]DO1', '#111=#111+#104',
+          `${g} X[#101+#103] Y#102 Z#111 I[0-#103] J0 F#107`, '#110=#110+1', 'END1', 'G01 X#101 Y#102 (LEAD OUT)', `G00 Z${F(v.safe)}`, 'M99'];
+        return {L, facts, call:`M98 P${I(v.prog)}`, file:`O${I(v.prog)}`, notes:[
+          `For a single-point thread mill. The hole must already be drilled to the minor dia and deeper than the thread length.`,
+          `To adjust the fit, change #103 in steps of 0.02 mm: larger opens the thread, smaller tightens it.`,
+          `Feed is converted from the cutting edge to the cutter centre, so F in the program is lower than what you entered.`
+        ]};
+      }
+      const name=`THREAD_MILL_${I(v.prog)}`;
+      const L=[`; ${name}.SPF`, `; ${tn} INTERNAL - CUTTER D${S(v.cut)}`,
+        `R1=${S(v.cx)} ; HOLE CENTRE X`, `R2=${S(v.cy)} ; HOLE CENTRE Y`, `R3=${S(+p.Rp.toFixed(4))} ; TOOL PATH RADIUS`, `R4=${S(v.pitch)} ; PITCH`,
+        `R5=${S(-v.len)} ; START Z = THREAD BOTTOM`, `R6=${p.turns} ; TURNS`, `R7=${S(p.cf)} ; FEED AT CUTTER CENTRE`,
+        'R10=0 ; TURN COUNTER', 'R11=R5 ; CURRENT Z', `S${I(v.rpm)} M3`, 'G0 X=R1 Y=R2', `G0 Z${S(v.safe)}`, 'G1 Z=R5 F=R7*3',
+        'G1 X=R1+R3 F=R7/2 ; LEAD IN TO WALL', 'WHILE R10<R6', 'R11=R11+R4', `${lh?'G2':'G3'} X=R1+R3 Y=R2 Z=R11 I=-R3 J=0 F=R7`, 'R10=R10+1', 'ENDWHILE',
+        'G1 X=R1 Y=R2 ; LEAD OUT', `G0 Z${S(v.safe)}`, 'M17'];
+      return {L, facts, call:name, file:name+'.SPF', notes:[
+        `For a single-point thread mill. The hole must already be drilled to the minor dia and deeper than the thread length.`,
+        `To adjust the fit, change R3 in steps of 0.02 mm: larger opens the thread, smaller tightens it.`,
+        `Feed is converted from the cutting edge to the cutter centre, so F in the program is lower than what you entered.`
+      ]};
+    }
+  },
+
+  warmup: {
+    name:'Spindle warm-up', sub:'Run the spindle up in timed steps',
+    fields:[
+      {id:'prog', label:'Program no.', def:9080, int:1, min:1},
+      {id:'s1', label:'Step 1', unit:'rpm', def:500, int:1, min:0},
+      {id:'s2', label:'Step 2', unit:'rpm', def:1500, int:1, min:0},
+      {id:'s3', label:'Step 3', unit:'rpm', def:3000, int:1, min:0},
+      {id:'s4', label:'Step 4', unit:'rpm', def:4500, int:1, min:0},
+      {id:'s5', label:'Step 5 (0 = skip)', unit:'rpm', def:6000, int:1, min:0},
+      {id:'mins', label:'Time per step', unit:'min', def:3, min:0.1}
+    ],
+    steps(v){ return ['s1','s2','s3','s4','s5'].map(k=>v[k]).filter(n=>n>0); },
+    check(v){ return this.steps(v).length ? [] : ['Enter at least one step above 0 rpm']; },
+    gen(c,v){
+      const s=this.steps(v), sec=+(v.mins*60).toFixed(1), tot=+(s.length*v.mins).toFixed(1);
+      const facts=[`${s.length} steps`, `${tot} min total`, `Top speed ${Math.max(...s)} rpm`];
+      if(isF(c)){
+        const L=[`O${I(v.prog)} (SPINDLE WARM-UP)`, `(${s.length} STEPS X ${S(v.mins)} MIN)`];
+        s.forEach(n=>L.push(`S${n} M03`, `G04 X${F(sec)} (${S(v.mins)} MIN AT ${n} RPM)`));
+        L.push('M05', 'M99');
+        return {L, facts, call:`M98 P${I(v.prog)}`, file:`O${I(v.prog)}`, notes:[
+          `Run at the start of a shift or after a long stop, with doors closed and no tool or a balanced tool in the spindle.`,
+          `To run it on its own instead of calling it, change the last M99 to M30.`,
+          `Keep the top step below the spindle's rated maximum speed.`
+        ]};
+      }
+      const name=`WARMUP_${I(v.prog)}`;
+      const L=[`; ${name}.SPF`, `; ${s.length} STEPS X ${S(v.mins)} MIN`];
+      s.forEach(n=>L.push(`S${n} M3`, `G4 F${S(sec)} ; ${S(v.mins)} MIN AT ${n} RPM`));
+      L.push('M5', 'M17');
+      return {L, facts, call:name, file:name+'.SPF', notes:[
+        `Run at the start of a shift or after a long stop, with doors closed and no tool or a balanced tool in the spindle.`,
+        `To run it on its own as a main program, save it as .MPF and change M17 to M30.`,
+        `Keep the top step below the spindle's rated maximum speed.`
+      ]};
+    }
+  }
+};
+
+/* ---------- state ---------- */
+let st = {ctrl:'fanuc', tpl:'toollife', vals:{}};
+try{ const s = JSON.parse(localStorage.getItem('macroBuilder')||'null'); if(s && CTRL[s.ctrl] && TPL[s.tpl]) st = Object.assign(st, s); }catch(e){}
+const save = () => { try{ localStorage.setItem('macroBuilder', JSON.stringify(st)); }catch(e){} };
+const key = f => `${st.tpl}.${f.id}${f.perCtrl?'.'+st.ctrl:''}`;
+const defOf = f => f.perCtrl ? f.def[st.ctrl] : f.def;
+
+function values(){
+  const v={};
+  for(const f of TPL[st.tpl].fields){
+    const raw = st.vals[key(f)];
+    if(f.type==='select'){ v[f.id] = raw ?? f.def; continue; }
+    let n = parseFloat(raw ?? defOf(f));
+    if(!isFinite(n)) n = NaN;
+    if(f.int && isFinite(n)) n = Math.round(n);
+    v[f.id] = n;
+  }
+  return v;
+}
+function problems(v){
+  const out=[];
+  for(const f of TPL[st.tpl].fields){
+    if(f.only && !f.only.includes(st.ctrl)) continue;
+    if(f.showIf && !f.showIf(v)) continue;
+    if(f.type==='select') continue;
+    const n=v[f.id];
+    if(!isFinite(n)) out.push(`${f.label}: enter a number`);
+    else if(f.min!==undefined && n<f.min) out.push(`${f.label}: must be at least ${f.min}`);
+    else if(f.max!==undefined && n>f.max) out.push(`${f.label}: must be ${f.max} or less`);
+  }
+  const t=TPL[st.tpl];
+  if(!out.length && t.check) out.push(...t.check(v));
+  return out;
+}
+
+/* ---------- render ---------- */
+const $ = id => document.getElementById(id);
+function keyBtn(k1,k2,on,fn){ const b=document.createElement('button'); b.className='key'; b.type='button'; b.setAttribute('aria-pressed',on); b.innerHTML=`<span class="k1">${k1}</span><span class="k2">${k2}</span>`; b.onclick=fn; return b; }
+function renderKeys(){
+  $('ctrlKeys').replaceChildren(...Object.entries(CTRL).map(([k,c])=>keyBtn(c.name,c.sub,st.ctrl===k,()=>{st.ctrl=k;save();renderAll();})));
+  $('tplKeys').replaceChildren(...Object.entries(TPL).map(([k,t])=>keyBtn(t.name,t.sub,st.tpl===k,()=>{st.tpl=k;save();renderAll();})));
+}
+function renderForm(){
+  const v=values(), box=$('form'); box.innerHTML='';
+  for(const f of TPL[st.tpl].fields){
+    if(f.only && !f.only.includes(st.ctrl)) continue;
+    if(f.showIf && !f.showIf(v)) continue;
+    const id=`f-${st.tpl}-${f.id}`, d=document.createElement('div'); d.className='field';
+    let inner;
+    if(f.type==='select'){
+      inner=`<select id="${id}">${f.opts.map(([val,l])=>`<option value="${val}"${v[f.id]===val?' selected':''}>${l}</option>`).join('')}</select>`;
+    } else {
+      const shown = st.vals[key(f)] ?? defOf(f);
+      inner=`${f.varPrefix?`<span class="pre">${isF(st.ctrl)?'#':'R'}</span>`:''}<input id="${id}" type="number" inputmode="decimal" step="any" value="${shown}">${f.unit?`<span class="unit">${f.unit}</span>`:''}`;
+    }
+    d.innerHTML=`<label for="${id}">${f.label}</label><div class="inp">${inner}</div>`;
+    box.appendChild(d);
+    const el=d.querySelector('input,select');
+    el.addEventListener(f.type==='select'?'change':'input', ()=>{ st.vals[key(f)]=el.value; save(); if(f.type==='select') renderForm(); else renderOut(); });
+  }
+  renderOut();
+}
+
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function hlCode(part){
+  return esc(part).replace(/("[^"]*")|(#\d+|\bR\d+\b)|\b(WHILE|ENDWHILE|DO\d|END\d|ENDIF|ELSE|IF|GOTO[FB]?|MSG|STOPRE|CYCLE8\d|COS|SIN|FIX|TRUNC|MOD)\b|(\bN\d+\b|^[A-Z_]+:)|\b([GM]\d{1,3}|O\d{3,5})\b/g,
+    (m,s,vr,kw,lab,g)=> s?`<span class="t-s">${s}</span>`: vr?`<span class="t-v">${vr}</span>`: kw?`<span class="t-k">${kw}</span>`: lab?`<span class="t-n">${lab}</span>`:`<span class="t-g">${g}</span>`);
+}
+function hl(line, c=st.ctrl){
+  if(c==='siemens'){
+    const i=line.indexOf(';');
+    return i<0 ? hlCode(line) : hlCode(line.slice(0,i))+`<span class="t-c">${esc(line.slice(i))}</span>`;
+  }
+  // Fanuc/Mitsubishi: (...) are comments or alarm text
+  return line.split(/(\([^)]*\))/).map(p=>p.startsWith('(')?`<span class="t-c">${esc(p)}</span>`:hlCode(p)).join('');
+}
+
+let current='', currentCall='';
+function renderOut(){
+  const v=values(), errs=problems(v), t=TPL[st.tpl];
+  $('prevSec').hidden = !PAINT[st.tpl];
+  if(errs.length){
+    $('out').innerHTML=`<div class="err">${errs.map(esc).join('<br>')}</div>`;
+    $('facts').innerHTML=''; current=''; $('lineCount').textContent=''; return;
+  }
+  const r=t.gen.call(t, st.ctrl, v);
+  current = r.L.join('\n') + '\n';
+  currentCall = r.call;
+  $('out').innerHTML = r.L.map(l=>`<span class="l">${hl(l)}</span>`).join('');
+  $('fname').textContent = `${r.file} · ${CTRL[st.ctrl].name} ${CTRL[st.ctrl].sub}`;
+  $('lineCount').textContent = `${r.L.length} blocks`;
+  $('callLine').textContent = r.call;
+  $('notes').innerHTML = r.notes.map(n=>`<li>${esc(n)}</li>`).join('');
+  $('facts').innerHTML = r.facts.map(f=>`<span class="chip">${esc(f)}</span>`).join('');
+  draw(v);
+}
+function renderAll(){ renderKeys(); renderForm(); renderVars(); renderCycles(); renderThreads(); if(typeof GEO!=='undefined') renderGeo(); if(typeof ALM!=='undefined') renderAlarms(); }
+
+/* ---------- preview ---------- */
+function fit(bx,W,H){
+  const pad=18, sc=Math.min((W-2*pad)/(bx[2]-bx[0]), (H-2*pad)/(bx[3]-bx[1]));
+  const ox=(W-(bx[2]-bx[0])*sc)/2, oy=(H-(bx[3]-bx[1])*sc)/2;
+  return {sc, X:x=>ox+(x-bx[0])*sc, Y:y=>H-(oy+(y-bx[1])*sc)};
+}
+const ring=(g,x,y,r)=>{ g.beginPath(); g.arc(x,y,Math.max(r,0.5),0,Math.PI*2); };
+const PAINT = {
+  bolt(g,W,H,c,v){
+    const R=v.pcd/2, {X,Y,sc}=fit([v.cx-R*1.25, v.cy-R*1.25, v.cx+R*1.25, v.cy+R*1.25],W,H);
+    g.strokeStyle=c.line; g.setLineDash([4,4]); ring(g,X(v.cx),Y(v.cy),R*sc); g.stroke(); g.setLineDash([]);
+    g.strokeStyle=c.mut; g.beginPath(); g.moveTo(X(v.cx)-6,Y(v.cy)); g.lineTo(X(v.cx)+6,Y(v.cy)); g.moveTo(X(v.cx),Y(v.cy)-6); g.lineTo(X(v.cx),Y(v.cy)+6); g.stroke();
+    const hr=Math.max(4, Math.min(10, R*sc*Math.sin(Math.PI/v.holes)*0.5));
+    for(let i=0;i<v.holes && i<360;i++){
+      const a=(v.start+i*360/v.holes)*Math.PI/180, x=X(v.cx+R*Math.cos(a)), y=Y(v.cy+R*Math.sin(a));
+      g.fillStyle=i===0?c.acc:c.ink; ring(g,x,y,hr); g.fill();
+      if(v.holes<=24){ g.fillStyle=c.mut; g.textAlign='center'; g.fillText(String(i+1), x+Math.cos(a)*(hr+10), y-Math.sin(a)*(hr+10)); }
+    }
+    return 'Hole 1 in orange';
+  },
+  face(g,W,H,c,v){
+    const {r, ys}=TPL.face.plan(v), {X,Y,sc}=fit([v.x0-r-8, v.y0-r-4, v.x0+v.lx+r+8, v.y0+v.ly+r+4],W,H);
+    g.fillStyle=c.soft; g.strokeStyle=c.mut; g.fillRect(X(v.x0),Y(v.y0+v.ly),v.lx*sc,v.ly*sc); g.strokeRect(X(v.x0),Y(v.y0+v.ly),v.lx*sc,v.ly*sc);
+    const xl=v.x0-r-5, xr=v.x0+v.lx+r+5;
+    g.strokeStyle=c.acc; g.lineWidth=1.5; g.beginPath();
+    ys.forEach((y,i)=>{ const a=i%2?xr:xl, b=i%2?xl:xr; if(i===0) g.moveTo(X(a),Y(y)); else g.lineTo(X(a),Y(y)); g.lineTo(X(b),Y(y)); });
+    g.stroke(); g.lineWidth=1;
+    if(ys.length){ g.strokeStyle=c.mut; g.setLineDash([3,3]); ring(g,X(xl),Y(ys[0]),r*sc); g.stroke(); g.setLineDash([]); }
+    return 'Shaded = part, dashed = cutter at start';
+  },
+  grid(g,W,H,c,v){
+    const pts=TPL.grid.order(v), xs=pts.map(p=>p[0]), ys=pts.map(p=>p[1]);
+    const m=Math.max(Math.abs(v.dx),Math.abs(v.dy),10)*0.6;
+    const {X,Y,sc}=fit([Math.min(...xs)-m, Math.min(...ys)-m, Math.max(...xs)+m, Math.max(...ys)+m],W,H);
+    g.strokeStyle=c.line; g.lineWidth=1.5; g.beginPath(); pts.forEach((p,i)=>i?g.lineTo(X(p[0]),Y(p[1])):g.moveTo(X(p[0]),Y(p[1]))); g.stroke(); g.lineWidth=1;
+    const hr=Math.max(2.5, Math.min(7, Math.min(Math.abs(v.dx)||99,Math.abs(v.dy)||99)*sc*0.22));
+    pts.forEach((p,i)=>{ g.fillStyle=i===0?c.acc:c.ink; ring(g,X(p[0]),Y(p[1]),hr); g.fill(); });
+    return 'Hole 1 in orange, line = drilling order';
+  },
+  pocket(g,W,H,c,v){
+    const p=TPL.pocket.plan(v), hx=v.lx/2, hy=v.ly/2;
+    const {X,Y,sc}=fit([v.cx-hx-6, v.cy-hy-6, v.cx+hx+6, v.cy+hy+6],W,H);
+    g.fillStyle=c.soft; g.strokeStyle=c.mut; g.fillRect(X(v.cx-hx),Y(v.cy+hy),v.lx*sc,v.ly*sc); g.strokeRect(X(v.cx-hx),Y(v.cy+hy),v.lx*sc,v.ly*sc);
+    g.strokeStyle=c.acc; g.lineWidth=1.5; g.beginPath(); g.moveTo(X(v.cx),Y(v.cy));
+    for(let j=p.J;j>=0;j--){ const a=p.ax-j*p.st, b=p.ay-j*p.st;
+      [[a,-b],[a,b],[-a,b],[-a,-b],[a,-b]].forEach(([dx,dy])=>g.lineTo(X(v.cx+dx),Y(v.cy+dy))); }
+    g.stroke(); g.lineWidth=1;
+    g.strokeStyle=c.mut; g.setLineDash([3,3]); ring(g,X(v.cx+p.ax),Y(v.cy-p.ay),p.r*sc); g.stroke(); g.setLineDash([]);
+    return 'Shaded = pocket, line = cutter centre';
+  },
+  thread(g,W,H,c,v){
+    const p=TPL.thread.plan(v), R=v.major/2, {X,Y,sc}=fit([v.cx-R*1.3, v.cy-R*1.3, v.cx+R*1.3, v.cy+R*1.3],W,H);
+    g.fillStyle=c.soft; ring(g,X(v.cx),Y(v.cy),R*sc); g.fill();
+    g.strokeStyle=c.mut; ring(g,X(v.cx),Y(v.cy),R*sc); g.stroke();
+    g.setLineDash([4,4]); ring(g,X(v.cx),Y(v.cy),p.minor/2*sc); g.stroke(); g.setLineDash([]);
+    g.strokeStyle=c.acc; g.lineWidth=1.5; ring(g,X(v.cx),Y(v.cy),p.Rp*sc); g.stroke();
+    g.beginPath(); g.moveTo(X(v.cx),Y(v.cy)); g.lineTo(X(v.cx+p.Rp),Y(v.cy)); g.stroke(); g.lineWidth=1;
+    g.strokeStyle=c.ink; ring(g,X(v.cx+p.Rp),Y(v.cy),v.cut/2*sc); g.stroke();
+    return 'Solid = major dia, dashed = minor, orange = cutter path';
+  },
+  warmup(g,W,H,c,v){
+    const s=TPL.warmup.steps(v), top=Math.max(...s), n=s.length, gap=8, padT=22, padB=22;
+    const bw=(W-32-gap*(n-1))/n, h=H-padT-padB;
+    g.textAlign='center';
+    s.forEach((rpm,i)=>{ const x=16+i*(bw+gap), bh=Math.max(3,h*rpm/top), y=padT+h-bh;
+      g.fillStyle=i===n-1?c.acc:c.ink; g.globalAlpha=i===n-1?1:0.35+0.5*i/Math.max(1,n-1); g.fillRect(x,y,bw,bh); g.globalAlpha=1;
+      g.fillStyle=c.mut; g.fillText(String(rpm), x+bw/2, y-9); g.fillText(`${S(v.mins*(i+1))} min`, x+bw/2, H-10); });
+    return 'rpm per step, time at end of step';
+  }
+};
+function draw(v){
+  const paint=PAINT[st.tpl]; if(!paint) return;
+  const cv=$('cv'), dpr=window.devicePixelRatio||1, W=cv.clientWidth, H=cv.clientHeight;
+  if(!W) return;
+  cv.width=W*dpr; cv.height=H*dpr; const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
+  const cs=getComputedStyle(document.documentElement), col=n=>cs.getPropertyValue(n).trim();
+  const c={ink:col('--ink'), mut:col('--muted'), acc:col('--accent'), line:col('--line'), soft:col('--accent-soft')};
+  g.font='11px "IBM Plex Mono", monospace'; g.textBaseline='middle';
+  $('prevNote').textContent = paint(g,W,H,c,v) || '';
+}
+window.addEventListener('resize', ()=>draw(values()));
+try{ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>draw(values())); }catch(e){}
+
+/* ---------- variable map ---------- */
+// row: [variable, meaning, tags (k kept, c cleared, r read, w r/w), detail]
+const AXIS5 = 'X, Y, Z, 4th, 5th axis in order';
+const VARS = {
+  fanuc: [
+    {g:'Basic variables', rows:[
+      ['#0', 'Null (always empty)', 'r', 'Use to test or clear a variable: IF[#1EQ#0]…'],
+      ['#1 – #33', 'Local variables', 'c w', 'Each macro call level has its own set. G65 arguments land here.'],
+      ['#100 – #199', 'Common variables', 'c w', 'Cleared at power off. Parameter 6001 bit 6 (CCV) decides whether reset clears them.'],
+      ['#500 – #999', 'Common variables, retained', 'k w', 'Best place for counters such as tool life and batch counts.']],
+      foot:'Some configurations add #200–#499 or extended ranges. Check the macro variable screen on your machine.'},
+    {g:'PMC interface signals', rows:[
+      ['#1000 – #1015', 'Inputs UI000 – UI015, one bit each', 'r'],
+      ['#1032', 'Inputs UI000 – UI031 as one 32-bit value', 'r'],
+      ['#1100 – #1115', 'Outputs UO000 – UO015, one bit each', 'w'],
+      ['#1132', 'Outputs UO000 – UO031 as one 32-bit value', 'w']]},
+    {g:'Tool offsets', sub:'M series, offset memory C', rows:[
+      ['#10001 – #10999', 'Length (H) wear', 'k w', 'Offsets 1–200 can also be read as #2001 – #2200.'],
+      ['#11001 – #11999', 'Length (H) geometry', 'k w', 'Offsets 1–200 can also be read as #2201 – #2400.'],
+      ['#12001 – #12999', 'Radius (D) wear', 'k w'],
+      ['#13001 – #13999', 'Radius (D) geometry', 'k w']],
+      foot:'Offset number = last digits: H5 geometry is #11005. With offset memory A the whole offset is #10001 – #10999.'},
+    {g:'System control', rows:[
+      ['#3000', 'Alarm with message', 'w', '#3000=n(TEXT) gives alarm MC3000+n, n = 0 – 200. Program stops, reset needed.'],
+      ['#3001', 'Clock 1 in ms', 'c w', 'Counts while power is on. Set to 0 to time a section.'],
+      ['#3002', 'Clock 2 in hours', 'k w', 'Counts while cycle start lamp is on.'],
+      ['#3003', 'Single block and FIN wait suppression', 'c w', '0 normal, 1 no single block, 2 no FIN wait, 3 both.'],
+      ['#3004', 'Feed hold, override, exact stop suppression', 'c w', 'Bit 0 feed hold off, bit 1 override fixed at 100 %, bit 2 exact stop check off.'],
+      ['#3006', 'Stop with message', 'w', '#3006=1(TEXT) stops and shows TEXT. Cycle start continues.'],
+      ['#3007', 'Mirror image state, one bit per axis', 'r'],
+      ['#3011', 'Date as YYYYMMDD', 'r'],
+      ['#3012', 'Time as HHMMSS', 'r'],
+      ['#3901', 'Parts machined counter', 'k w'],
+      ['#3902', 'Parts required', 'k w']]},
+    {g:'Modal information', rows:[
+      ['#4001 – #4030', 'G code of group 1 – 30, previous block', 'r', '#4003 gives 90 or 91, #4014 gives 54 – 59.'],
+      ['#4102 – #4130', 'Previous block addresses', 'r', '#4107 D, #4109 F, #4111 H, #4113 M, #4114 N, #4115 O, #4119 S, #4120 T.'],
+      ['#4201 – #4330', 'Same, for the block being executed', 'r']]},
+    {g:'Positions', sub:AXIS5, rows:[
+      ['#5001 – #5005', 'End point of previous block, workpiece coordinates', 'r'],
+      ['#5021 – #5025', 'Current machine position', 'r', 'Reading stops look-ahead.'],
+      ['#5041 – #5045', 'Current workpiece position', 'r', 'Reading stops look-ahead.'],
+      ['#5061 – #5065', 'Skip position (G31 probe trigger point)', 'r'],
+      ['#5081 – #5085', 'Tool length offset in effect', 'r'],
+      ['#5101 – #5105', 'Servo position deviation', 'r']]},
+    {g:'Work offsets', sub:AXIS5, rows:[
+      ['#5201 – #5205', 'External work offset (EXT)', 'k w'],
+      ['#5221 – #5225', 'G54', 'k w'],
+      ['#5241 – #5245', 'G55', 'k w'],
+      ['#5261 – #5265', 'G56', 'k w'],
+      ['#5281 – #5285', 'G57', 'k w'],
+      ['#5301 – #5305', 'G58', 'k w'],
+      ['#5321 – #5325', 'G59', 'k w'],
+      ['#7001 – #7945', 'G54.1 P1 – P48', 'k w', 'Each P steps by 20: P1 X = #7001, P2 X = #7021, P48 X = #7941.'],
+      ['#14001 – #19980', 'G54.1 P1 – P300 (option)', 'k w', 'Each P steps by 20: P1 X = #14001.']]}
+  ],
+  mits: [
+    {g:'Basic variables', rows:[
+      ['#0', 'Null (always empty)', 'r'],
+      ['#1 – #33', 'Local variables', 'c w', 'Each macro call level has its own set. G65 arguments land here.'],
+      ['#100 – #199', 'Common variables 2', 'c w', 'Cleared at power off. A parameter can also clear them at reset.'],
+      ['#500 – #999', 'Common variables 1, retained', 'k w', 'Best place for counters such as tool life and batch counts.']],
+      foot:'How many common variables you have depends on the variable-set option (for example only #500 – #549). Check the variable screen.'},
+    {g:'PLC interface signals', rows:[
+      ['#1000 – #1031', 'Input bits from the PLC', 'r'],
+      ['#1032', 'Inputs as one 32-bit value', 'r'],
+      ['#1100 – #1131', 'Output bits to the PLC', 'w'],
+      ['#1132', 'Outputs as one 32-bit value', 'w']]},
+    {g:'Tool offsets', sub:'M system, offset type II', rows:[
+      ['#10001 – #10999', 'Length wear', 'k w', 'Offsets 1–200 can also be read as #2001 – #2200.'],
+      ['#11001 – #11999', 'Length dimension', 'k w'],
+      ['#12001 – #12999', 'Radius wear', 'k w'],
+      ['#13001 – #13999', 'Radius dimension', 'k w']],
+      foot:'Offset number = last digits. With offset type I there is one value per offset at #10001 – #10999. Confirm the type in parameters.'},
+    {g:'System control', rows:[
+      ['#3000', 'Alarm with message', 'w', '#3000=n(TEXT), n = 1 – 9999, up to 31 characters. Program stops, reset needed.'],
+      ['#3001', 'Integrating timer 1 in ms', 'c w'],
+      ['#3002', 'Integrating timer 2 in hours', 'k w', 'Counts during automatic start.'],
+      ['#3003', 'Single block and FIN wait suppression', 'c w', '0 normal, 1 no single block, 2 no FIN wait, 3 both.'],
+      ['#3004', 'Feed hold, override, G09 suppression', 'c w', 'Bit 0 feed hold off, bit 1 override fixed, bit 2 exact stop check off.'],
+      ['#3007', 'Mirror image state, one bit per axis', 'r'],
+      ['#3011', 'Date as YYYYMMDD', 'r'],
+      ['#3012', 'Time as HHMMSS', 'r']],
+      foot:'For a stop with a message, use M00 with a comment, or #3000 for a hard stop.'},
+    {g:'Modal information', rows:[
+      ['#4001 – #4021', 'G code of each group, previous block', 'r', '#4003 gives 90 or 91, #4012 gives the work offset.'],
+      ['#4102 – #4120', 'Previous block addresses', 'r', '#4107 D, #4109 F, #4111 H, #4113 M, #4114 N, #4115 O, #4119 S, #4120 T.'],
+      ['#4201 – #4320', 'Same, for the block being executed', 'r']]},
+    {g:'Positions', sub:'1st – 8th axis in order', rows:[
+      ['#5001 – #5008', 'End point of previous block, workpiece coordinates', 'r'],
+      ['#5021 – #5028', 'Current machine position', 'r', 'Reading stops look-ahead.'],
+      ['#5041 – #5048', 'Current workpiece position', 'r', 'Reading stops look-ahead.'],
+      ['#5061 – #5068', 'Skip position (G31 probe trigger point)', 'r'],
+      ['#5081 – #5088', 'Tool offset in effect', 'r'],
+      ['#5101 – #5108', 'Servo position deviation', 'r']]},
+    {g:'Work offsets', sub:'1st – 8th axis in order', rows:[
+      ['#5201 – #5208', 'External work offset', 'k w'],
+      ['#5221 – #5228', 'G54', 'k w'],
+      ['#5241 – #5248', 'G55', 'k w'],
+      ['#5261 – #5268', 'G56', 'k w'],
+      ['#5281 – #5288', 'G57', 'k w'],
+      ['#5301 – #5308', 'G58', 'k w'],
+      ['#5321 – #5328', 'G59', 'k w'],
+      ['#7001 – #7948', 'G54.1 P1 – P48', 'k w', 'Each P steps by 20: P1 X = #7001, P2 X = #7021.']]}
+  ],
+  siemens: [
+    {g:'User variables', rows:[
+      ['R0 – R299', 'R parameters', 'k w', 'Count is set by MD28050 (300 by default on 828D). Shown under Offset › R variables.'],
+      ['DEF REAL A', 'Local user data (LUD)', 'c w', 'Declared at the top of a program with DEF REAL, INT, BOOL, CHAR, STRING[n], AXIS, FRAME. Gone when the program ends.'],
+      ['GUD', 'Global user data', 'k w', 'Declared in SGUD, MGUD or UGUD .DEF files (DEF NCK REAL NAME), then activated. Visible to every program.'],
+      ['PROC NAME(…)', 'Subprogram parameters', 'c w', 'Values passed in a call. Use VAR in front of a parameter to pass a result back.']]},
+    {g:'Tool data', sub:'t = tool number, d = cutting edge', rows:[
+      ['$P_TOOLNO', 'Active tool number', 'r'],
+      ['$P_TOOL', 'Active D number', 'r'],
+      ['$TC_DP1[t,d]', 'Tool type (120 end mill, 200 drill …)', 'k w'],
+      ['$TC_DP3[t,d]', 'Length 1 geometry', 'k w'],
+      ['$TC_DP6[t,d]', 'Radius geometry', 'k w'],
+      ['$TC_DP12[t,d]', 'Length 1 wear', 'k w'],
+      ['$TC_DP15[t,d]', 'Radius wear', 'k w'],
+      ['$TC_MOP2[t,d]', 'Tool life: remaining time (min)', 'k w'],
+      ['$TC_MOP4[t,d]', 'Tool life: remaining count', 'k w'],
+      ['$TC_MOP11[t,d]', 'Tool life: setpoint time', 'k w'],
+      ['$TC_MOP13[t,d]', 'Tool life: setpoint count', 'k w'],
+      ['$TC_TP8[t]', 'Tool status bits (active, enabled, disabled …)', 'k w']],
+      foot:'The built-in tool monitoring ($TC_MOP…) can replace a hand-written tool life counter.'},
+    {g:'Positions & probing', sub:'axis name in brackets', rows:[
+      ['$AA_IM[X]', 'Actual position, machine coordinates', 'r', 'Main-run variable: reading it stops look-ahead.'],
+      ['$AA_IW[X]', 'Actual position, workpiece coordinates', 'r', 'Main-run variable.'],
+      ['$P_EP[X]', 'Programmed end point, workpiece coordinates', 'r', 'Read during preprocessing, no stop.'],
+      ['$AC_MEA[1]', 'Probe 1 triggered (1) or not (0)', 'r'],
+      ['$AA_MM[X]', 'Probe trigger position, machine coordinates', 'r'],
+      ['$AA_MW[X]', 'Probe trigger position, workpiece coordinates', 'r']]},
+    {g:'Work offsets', rows:[
+      ['$P_UIFR[1,X,TR]', 'G54 X offset', 'k w', 'Frame number: G54 = 1, G55 = 2, G56 = 3, G57 = 4, G505 = 5 and up. Axis X, Y, Z.'],
+      ['$P_UIFR[n,X,FI]', 'Fine offset for the same frame', 'k w'],
+      ['$P_UIFR[n,Z,RT]', 'Rotation about Z in the frame', 'k w'],
+      ['$P_UIFRNUM', 'Active work offset number', 'r']],
+      foot:'After writing a frame from the program, activate it again (for example G54) so the new value is used.'},
+    {g:'Status, counters & time', rows:[
+      ['$AC_TOTAL_PARTS', 'Total parts counter', 'k w'],
+      ['$AC_REQUIRED_PARTS', 'Required parts', 'k w'],
+      ['$AC_ACTUAL_PARTS', 'Actual parts counter', 'k w'],
+      ['$AC_SPECIAL_PARTS', 'User parts counter', 'k w'],
+      ['$AC_CYCLE_TIME', 'Run time of the current program (s)', 'r'],
+      ['$AA_S[1]', 'Actual spindle speed', 'r'],
+      ['$A_YEAR … $A_SECOND', 'Date and time: $A_YEAR, $A_MONTH, $A_DAY, $A_HOUR, $A_MINUTE, $A_SECOND', 'r']]},
+    {g:'Messages & alarms', rows:[
+      ['MSG("TEXT")', 'Show a message line', 'w', 'Clear it with MSG(). Combine with M0 for a stop with message.'],
+      ['SETAL(65000)', 'Raise a user cycle alarm', 'w', 'User range 65000 – 69999. Alarm text goes in the user alarm text file.'],
+      ['STOPRE', 'Stop preprocessing', 'w', 'Forces the control to re-read values changed during a stop.']]}
+  ]
+};
+const ARGS = [['A',1],['B',2],['C',3],['I',4],['J',5],['K',6],['D',7],['E',8],['F',9],['H',11],['M',13],['Q',17],['R',18],['S',19],['T',20],['U',21],['V',22],['W',23],['X',24],['Y',25],['Z',26]];
+const OPS = {
+  f: [['Compare','EQ  NE  GT  LT  GE  LE'], ['Logic','AND  OR  XOR (bitwise on integers)'], ['Math','+  -  *  /  MOD'], ['Functions','SIN COS TAN ASIN ACOS ATAN SQRT ABS ROUND FIX FUP LN EXP BIN BCD'], ['Branch','IF[…]GOTOn   IF[…]THEN #i=…   GOTOn'], ['Loop','WHILE[…]DOm … ENDm   (m = 1, 2, 3; nest up to 3)'], ['Brackets','[ ] for expressions, ( ) only for comments and messages']],
+  m: [['Compare','EQ  NE  GT  LT  GE  LE'], ['Logic','AND  OR  XOR (bitwise on integers)'], ['Math','+  -  *  /  MOD'], ['Functions','SIN COS TAN ATAN SQRT ABS ROUND FIX FUP LN EXP BIN BCD'], ['Branch','IF[…]GOTOn   GOTOn'], ['Loop','WHILE[…]DOm … ENDm   (m = 1 – 127, nest up to 27)'], ['Brackets','[ ] for expressions, ( ) only for comments and messages']],
+  siemens: [['Compare','==  <>  >  <  >=  <='], ['Logic','AND  OR  NOT  XOR   B_AND  B_OR (bitwise)'], ['Math','+  -  *  /  DIV  MOD'], ['Functions','SIN COS TAN ASIN ACOS ATAN2 SQRT POT ABS TRUNC ROUND MINVAL MAXVAL'], ['Branch','IF … ELSE … ENDIF   GOTOF / GOTOB label'], ['Loop','WHILE … ENDWHILE   FOR R1=1 TO 10 … ENDFOR   REPEAT … UNTIL   LOOP … ENDLOOP'], ['Brackets','( ) for expressions, ; starts a comment']]
+};
+const TAGS = {k:['keep','Kept'], c:['clear','Cleared'], r:['ro','Read'], w:['rw','R/W']};
+
+function renderVars(){
+  const q=($('vq').value||'').trim().toLowerCase(), data=VARS[st.ctrl];
+  const html=[];
+  for(const grp of data){
+    const rows=grp.rows.filter(r=>!q || (grp.g+' '+r.join(' ')).toLowerCase().includes(q));
+    if(!rows.length) continue;
+    html.push(`<div class="vg"><h3>${esc(grp.g)}${grp.sub?`<small>${esc(grp.sub)}</small>`:''}</h3>${rows.map(([v,d,t,n])=>
+      `<div class="vr"><div class="rg">${esc(v)}</div><div class="ds">${esc(d)}${(t||'').split(' ').filter(Boolean).map(k=>`<span class="tag ${TAGS[k][0]}">${TAGS[k][1]}</span>`).join('')}${n?`<em>${esc(n)}</em>`:''}</div></div>`).join('')}${grp.foot&&!q?`<div class="foot">${esc(grp.foot)}</div>`:''}</div>`);
+  }
+  $('varGroups').innerHTML = html.join('') || `<p class="empty">Nothing matches “${esc(q)}” for ${CTRL[st.ctrl].name}. Try a number such as 5221 or a word such as offset.</p>`;
+  if(isF(st.ctrl)){
+    $('argTitle').textContent='G65 arguments → local variables';
+    $('argBox').innerHTML=`<div class="args">${ARGS.map(([l,n])=>`<div><b>${l}</b><span>#${n}</span></div>`).join('')}</div>
+      <p class="mono-note">G, L, N, O and P cannot be used as arguments. An argument not given stays empty (#0), so test it with IF[#n EQ #0].</p>
+      <pre class="ex">G65 P9100 X50. Y20. R10. F200.\n(INSIDE O9100: #24=50. #25=20. #18=10. #9=200.)</pre>`;
+  } else {
+    $('argTitle').textContent='Passing values to a subprogram';
+    $('argBox').innerHTML=`<p class="mono-note" style="margin:0">Name the parameters on the first line with PROC, then call the subprogram by name with values in brackets. Leave a value out to skip it; test with $P_SUBPAR[n].</p>
+      <pre class="ex">PROC BOLT_CIRCLE(REAL CX, REAL CY, REAL PCD, INT N)\n...\nM17\n\n; in the main program\nBOLT_CIRCLE(50, 20, 100, 6)</pre>`;
+  }
+  const ops=OPS[st.ctrl==='fanuc'?'f':st.ctrl==='mits'?'m':'siemens'];
+  $('opBox').innerHTML=`<dl class="ops">${ops.map(([a,b])=>`<dt>${a}</dt><dd>${esc(b)}</dd>`).join('')}</dl>`;
+}
+$('vq').addEventListener('input', renderVars);
+
+/* ---------- shared snippet ---------- */
+const COPYBUF={};
+function snip(key, title, lines, c){
+  COPYBUF[key]=lines.join('\n')+'\n';
+  return `<div class="snip"><div class="bar"><span>${esc(title)}</span><button class="btn" data-copy="${key}">Copy</button></div><pre id="cp-${key}">${lines.map(l=>`<span class="l">${hl(l,c)}</span>`).join('')}</pre></div>`;
+}
+document.addEventListener('click', e=>{ const b=e.target.closest('[data-copy]'); if(!b) return; const k=b.dataset.copy; copy(COPYBUF[k], $('cp-'+k)); });
+const fx=(n,d)=>String(+(+n).toFixed(d));
+const tiles=a=>`<div class="res">${a.map(([l,v,u,h])=>`<div${h?' class="hi"':''}><small>${l}</small><b>${v}${u?`<i>${u}</i>`:''}</b></div>`).join('')}</div>`;
+
+/* ---------- calculators ---------- */
+const THREADS=[['M3',3,0.5],['M4',4,0.7],['M5',5,0.8],['M6',6,1],['M8',8,1.25],['M10',10,1.5],['M12',12,1.75],['M14',14,2],['M16',16,2],['M18',18,2.5],['M20',20,2.5],['M22',22,2.5],['M24',24,3],['M27',27,3],['M30',30,3.5],['M36',36,4]];
+const autoPasses=P=>P<=0.75?4:P<=1?5:P<=1.5?6:P<=2?8:P<=2.5?9:P<=3?10:12;
+const CALCS=[
+  {id:'mill', title:'Milling speed & feed', sub:'Machining centre', fields:[
+    {id:'d',label:'Cutter dia',unit:'mm',def:50,min:0.01},{id:'vc',label:'Cutting speed Vc',unit:'m/min',def:200,min:0.1},
+    {id:'z',label:'No. of teeth',def:4,min:1,int:1},{id:'fz',label:'Feed per tooth fz',unit:'mm',def:0.1,min:0.001},
+    {id:'ap',label:'Depth of cut ap',unit:'mm',def:2,min:0},{id:'ae',label:'Width of cut ae',unit:'mm',def:30,min:0}],
+   out(v){ const n=1000*v.vc/(Math.PI*v.d), vf=n*v.z*v.fz, q=v.ap*v.ae*vf/1000;
+     return tiles([['Spindle',Math.round(n),'rpm',1],['Table feed',Math.round(vf),'mm/min',1],['Feed per rev',fx(v.z*v.fz,3),'mm'],['Metal removal',fx(q,1),'cm³/min']])+
+       `<p class="mono-note" style="margin:0">n = 1000 × Vc ÷ (π × D)   ·   F = n × z × fz   ·   Q = ap × ae × F ÷ 1000</p>`+
+       snip('c-mill','FANUC / Mitsubishi',[`S${Math.round(n)} M03`,`G01 X100. F${Math.round(vf)}.`],'fanuc'); }},
+  {id:'turn', title:'Turning speed & feed', sub:'Lathe', fields:[
+    {id:'d',label:'Work dia',unit:'mm',def:50,min:0.01},{id:'vc',label:'Cutting speed Vc',unit:'m/min',def:180,min:0.1},
+    {id:'f',label:'Feed per rev',unit:'mm/rev',def:0.2,min:0.001},{id:'l',label:'Length of cut',unit:'mm',def:60,min:0},
+    {id:'re',label:'Insert nose radius',unit:'mm',def:0.8,min:0.01},{id:'smax',label:'Max spindle (G50 / LIMS)',unit:'rpm',def:3000,min:1,int:1}],
+   out(v){ const n0=1000*v.vc/(Math.PI*v.d), n=Math.min(n0,v.smax), vf=n*v.f, t=v.l/vf, vcAct=Math.PI*v.d*n/1000;
+     const ra=v.f*v.f/(32*v.re)*1000, rz=v.f*v.f/(8*v.re)*1000, mm=Math.floor(t), ss=Math.round((t-mm)*60);
+     return tiles([['Spindle',Math.round(n),'rpm',1],['Feed',Math.round(vf),'mm/min',1],['Cut time',`${mm}:${String(ss).padStart(2,'0')}`,'min:s'],['Finish Ra',fx(ra,2),'µm'],['Finish Rz',fx(rz,1),'µm']])+
+       (n0>v.smax?`<p class="warnline">Speed limit reached: ${Math.round(n0)} rpm needed, capped at ${v.smax}. Actual Vc at this diameter is ${fx(vcAct,0)} m/min.</p>`:'')+
+       `<p class="mono-note" style="margin:0">Ra ≈ f² ÷ (32 × rε) is the theoretical finish; real finish depends on insert, rigidity and coolant.</p>`+
+       snip('c-turn-f','FANUC / Mitsubishi lathe',[`G50 S${v.smax} (SPINDLE LIMIT)`,`G96 S${fx(v.vc,0)} M03`,`G99 G01 Z${F(-v.l)} F${F(v.f)}`],'fanuc')+
+       snip('c-turn-s','SINUMERIK 828D turning',[`LIMS=${v.smax}`,`G96 S${fx(v.vc,0)} M3`,`G95 G1 Z-${fx(v.l,3)} F${fx(v.f,3)}`],'siemens'); }},
+  {id:'drill', title:'Drilling & tapping', sub:'Both machine types', fields:[
+    {id:'dd',label:'Drill dia',unit:'mm',def:10,min:0.01},{id:'vcd',label:'Drill Vc',unit:'m/min',def:80,min:0.1},{id:'fr',label:'Drill feed',unit:'mm/rev',def:0.15,min:0.001},
+    {id:'td',label:'Tap size (nominal)',unit:'mm',def:10,min:0.5},{id:'tp',label:'Tap pitch',unit:'mm',def:1.5,min:0.05},{id:'vct',label:'Tap Vc',unit:'m/min',def:12,min:0.1}],
+   out(v){ const n=1000*v.vcd/(Math.PI*v.dd), f=n*v.fr, nt=Math.round(1000*v.vct/(Math.PI*v.td)), ft=nt*v.tp;
+     return tiles([['Drill spindle',Math.round(n),'rpm',1],['Drill feed',Math.round(f),'mm/min',1],['Tap spindle',nt,'rpm',1],['Tap feed',fx(ft,1),'mm/min',1],['Tap drill',fx(v.td-v.tp,2),'mm'],['Thread',`M${fx(v.td,2)}×${fx(v.tp,3)}`]])+
+       `<p class="mono-note" style="margin:0">Tap feed must equal spindle × pitch exactly. Tap drill = nominal − pitch (about 77 % thread engagement).</p>`+
+       snip('c-tap-f','FANUC rigid tap',[`M29 S${nt}`,`G99 G84 X0. Y0. Z-20. R5. F${F(+fx(ft,3))}`,'G80'],'fanuc')+
+       snip('c-tap-s','SINUMERIK 828D rigid tap',[`CYCLE84(50,0,2,-20,,0,3,,${fx(v.tp,3)},0,${nt},${nt*2})`],'siemens'); }},
+  {id:'bolt', title:'Bolt hole circle', sub:'Hole coordinates', fields:[
+    {id:'cx',label:'Centre X',unit:'mm',def:0},{id:'cy',label:'Centre Y',unit:'mm',def:0},{id:'pcd',label:'PCD',unit:'mm',def:100,min:0.001},
+    {id:'n',label:'No. of holes',def:6,min:1,int:1},{id:'a0',label:'Start angle',unit:'°',def:0},
+    {id:'dir',label:'Direction',type:'select',def:'ccw',opts:[['ccw','Counter-clockwise'],['cw','Clockwise']]}],
+   out(v){ const R=v.pcd/2, sgn=v.dir==='cw'?-1:1, rows=[], lines=[];
+     for(let i=0;i<v.n&&i<360;i++){ const a=v.a0+sgn*i*360/v.n, r=a*Math.PI/180, x=v.cx+R*Math.cos(r), y=v.cy+R*Math.sin(r);
+       const X=fx(Math.abs(x)<5e-5?0:x,3), Y=fx(Math.abs(y)<5e-5?0:y,3); rows.push([i+1,fx(((a%360)+360)%360,3),X,Y]); lines.push(`X${F(+X)} Y${F(+Y)}`); }
+     const ch=2*R*Math.sin(Math.PI/v.n);
+     return tiles([['Pitch angle',fx(360/v.n,4),'°'],['Hole to hole',fx(ch,3),'mm',1],['Radius',fx(R,3),'mm']])+
+       `<div class="tw"><table class="t"><thead><tr><th>Hole</th><th>Angle °</th><th>X</th><th>Y</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`).join('')}</tbody></table></div>`+
+       snip('c-bolt','Positions, ready to paste after a G81 / G83 line',lines,'fanuc'); }},
+  {id:'thread', title:'Thread calculator', sub:'ISO metric 60°', fields:[
+    {id:'size',label:'Standard size',type:'select',def:'M20',opts:[...THREADS.map(t=>[t[0],`${t[0]} × ${t[2]}`]),['custom','Custom']]},
+    {id:'d',label:'Major dia',unit:'mm',def:20,min:0.5},{id:'p',label:'Pitch',unit:'mm',def:2.5,min:0.1},
+    {id:'kind',label:'Thread',type:'select',def:'ext',opts:[['ext','External (OD)'],['int','Internal (ID)']]},
+    {id:'l',label:'Thread length',unit:'mm',def:25,min:0.1},{id:'np',label:'Passes (0 = auto)',def:0,min:0,int:1}],
+   out(v){ const P=v.p, ext=v.kind==='ext', h=ext?0.6134*P:0.5413*P, d1=v.d-1.0825*P, d3=v.d-1.2269*P, d2=v.d-0.6495*P;
+     const n=Math.max(2, v.np||autoPasses(P)), cum=[], rows=[];
+     for(let i=1;i<=n;i++){ const phi=i===1?0.3:i-1; cum.push(h*Math.sqrt(phi)/Math.sqrt(n-1)); }
+     cum.forEach((c,i)=>{ const X=ext?v.d-2*c:d1+2*c; rows.push([i+1, fx(c-(i?cum[i-1]:0),3), fx(c,3), fx(X,3)]); });
+     const xs=rows.map(r=>r[3]), fin=ext?v.d-2*h:v.d, start=ext?v.d+4:d1-2;
+     const g76=[ `G00 X${F(+fx(start,1))} Z${F(2*P+2)}`, `G76 P020060 Q50 R0.02`, `G76 X${F(+fx(fin,3))} Z${F(-v.l)} R0 P${Math.round(h*1000)} Q${Math.round(cum[0]*1000)} F${F(P)}`, 'G00 X100. Z100.'];
+     const g92=[`G00 X${F(+fx(start,1))} Z${F(2*P+2)}`, `G92 X${F(+xs[0])} Z${F(-v.l)} F${F(P)}`, ...xs.slice(1).map(x=>`X${F(+x)}`), 'G00 X100. Z100.'];
+     const c97=[`G0 X${fx(start,1)} Z${fx(2*P+2,3)}`, `CYCLE97(${fx(P,3)},,0,${fx(-v.l,3)},${fx(v.d,3)},${fx(v.d,3)},${fx(2*P,3)},${fx(P,3)},${fx(h,3)},0.02,30,0,${n},1,${ext?3:4},1,1)`];
+     return tiles([['Thread depth',fx(h,3),'mm',1],[ext?'Final X (minor)':'Final X (major)',fx(fin,3),'mm',1],['Pitch dia d2',fx(d2,3),'mm'],[ext?'Minor dia d3':'Bore dia D1',fx(ext?d3:d1,3),'mm'],['Tap drill',fx(v.d-P,2),'mm'],['Passes',n,'']])+
+       `<div class="tw"><table class="t"><thead><tr><th>Pass</th><th>Cut</th><th>Total depth</th><th>X dia</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`).join('')}</tbody></table></div>`+
+       `<p class="mono-note" style="margin:0">Passes get smaller as the insert goes deeper (constant chip area). ${ext?'External depth 0.6134 × P, minor 1.2269 × P below major.':'Internal depth 0.5413 × P from a bore at D − 1.0825 × P.'}</p>`+
+       snip('c-g76','FANUC / Mitsubishi lathe · G76 two-block',g76,'fanuc')+
+       snip('c-g92','FANUC / Mitsubishi lathe · G92 pass by pass',g92,'fanuc')+
+       snip('c-c97','SINUMERIK 828D · CYCLE97',c97,'siemens'); }}
+];
+const cKey=(c,f)=>`calc.${c.id}.${f.id}`;
+function cVals(c){ const v={}; for(const f of c.fields){ const raw=st.vals[cKey(c,f)]; if(f.type==='select'){ v[f.id]=raw??f.def; continue; } let n=parseFloat(raw??f.def); if(f.int&&isFinite(n)) n=Math.round(n); v[f.id]=n; } return v; }
+function renderCalcs(){ renderCalcList(CALCS, $('viewCalc')); }
+function renderCalcList(list, box){
+  box.innerHTML = list.map(c=>`<section class="card" id="calc-${c.id}"><h3>${c.title}<small>${c.sub}</small></h3><div class="body"><div class="grid">${c.fields.map(f=>{
+    const id=`c-${c.id}-${f.id}`, val=st.vals[cKey(c,f)]??f.def;
+    const inner = f.type==='select' ? `<select id="${id}">${f.opts.map(([o,l])=>`<option value="${o}"${String(val)===o?' selected':''}>${l}</option>`).join('')}</select>`
+      : `<input id="${id}" type="number" inputmode="decimal" step="any" value="${val}">${f.unit?`<span class="unit">${f.unit}</span>`:''}`;
+    return `<div class="field"><label for="${id}">${f.label}</label><div class="inp">${inner}</div></div>`; }).join('')}</div><div class="out" id="co-${c.id}" style="display:flex;flex-direction:column;gap:12px"></div></div></section>`).join('');
+  for(const c of list){
+    for(const f of c.fields){
+      const el=$(`c-${c.id}-${f.id}`);
+      el.addEventListener(f.type==='select'?'change':'input', ()=>{
+        st.vals[cKey(c,f)]=el.value;
+        if(c.id==='thread' && f.id==='size' && el.value!=='custom'){ const t=THREADS.find(x=>x[0]===el.value); for(const [k,val] of [['d',t[1]],['p',t[2]]]){ st.vals[`calc.thread.${k}`]=String(val); $(`c-thread-${k}`).value=val; } }
+        if(c.id==='thread' && (f.id==='d'||f.id==='p')){ st.vals['calc.thread.size']='custom'; $('c-thread-size').value='custom'; }
+        save(); calcOut(c);
+      });
+    }
+    calcOut(c);
+  }
+}
+function calcOut(c){
+  const v=cVals(c), bad=c.fields.filter(f=>f.type!=='select' && !(f.opt && !isFinite(v[f.id])) && (!isFinite(v[f.id]) || (f.min!==undefined && v[f.id]<f.min)));
+  $(`co-${c.id}`).innerHTML = bad.length ? `<p class="warnline">${bad.map(f=>`${f.label}: enter a value${f.min!==undefined?' of at least '+f.min:''}`).join('<br>')}</p>` : c.out(v);
+}
+
+/* ---------- cycle samples ---------- */
+const CYF = {
+ turn:[
+  {id:'G90', t:'OD / ID turning cycle', code:['G00 X52. Z2.','G90 X46. Z-40. F0.25','X42.','X38.','G00 X100. Z100.'],
+   p:[['X','Diameter of this pass'],['Z','End point in Z'],['R','Taper: radius at start minus radius at end (omit for straight)'],['F','Feed per rev']], note:'Each extra X line repeats the cycle with the same Z and F.'},
+  {id:'G94', t:'Face cutting cycle', code:['G00 X52. Z2.','G94 X-1. Z-1. F0.2','Z-2.','Z-3.','G00 X100. Z100.'],
+   p:[['X','End diameter of the face (−1. clears the centre)'],['Z','Face position of this pass'],['R','Taper in Z (omit for flat)'],['F','Feed per rev']]},
+  {id:'G71', t:'OD roughing (stock removal)', code:['G00 X52. Z2.','G71 U2. R0.5','G71 P10 Q20 U0.4 W0.1 F0.25','N10 G00 X16.','G01 Z0. F0.12','X20. Z-2.','Z-15.','X30. Z-25.','Z-40.','N20 X52.','G70 P10 Q20','G00 X100. Z100.'],
+   p:[['U (1st block)','Depth of cut per side'],['R','Retract after each pass'],['P / Q','First and last block number of the finished shape'],['U (2nd block)','Finish allowance on diameter'],['W','Finish allowance in Z'],['F','Roughing feed. F inside N10–N20 is used only by G70']],
+   note:'Type I shape: X must keep increasing from N10 to N20. For a bore, start below the bore and give U a negative value.'},
+  {id:'G70', t:'Finishing cycle', code:['G96 S220 M03','G00 X52. Z2.','G70 P10 Q20','G00 X100. Z100.'],
+   p:[['P / Q','Same block numbers as the G71, G72 or G73 roughing'],['F, S','Taken from the shape blocks']], note:'Often run with a separate finishing tool after the roughing tool.'},
+  {id:'G72', t:'Face roughing (stock removal)', code:['G00 X82. Z2.','G72 W2. R0.5','G72 P30 Q40 U0.4 W0.1 F0.25','N30 G00 Z-20.','G01 X60. F0.12','Z-10.','X30. Z-5.','N40 Z2.','G70 P30 Q40','G00 X100. Z100.'],
+   p:[['W (1st block)','Depth of cut per pass in Z'],['R','Retract'],['P / Q','Shape block numbers'],['U / W (2nd)','Finish allowance in X (dia) and Z'],['F','Roughing feed']], note:'Cuts across the face. The shape starts at the deepest Z and must move steadily toward Z+.'},
+  {id:'G73', t:'Pattern repeating (castings, forgings)', code:['G00 X60. Z5.','G73 U6. W0. R4','G73 P50 Q60 U0.4 W0.1 F0.25','N50 G00 X20. Z2.','G01 Z-10. F0.12','X30. Z-20.','Z-35.','N60 X52.','G70 P50 Q60','G00 X100. Z100.'],
+   p:[['U / W (1st)','Total stock to remove in X (per side) and Z'],['R','Number of passes'],['P / Q','Shape block numbers'],['U / W (2nd)','Finish allowance']], note:'Each pass follows the full shape offset outward. Good for near-net blanks, wasteful on bar stock.'},
+  {id:'G74', t:'Face peck drilling / Z grooving', code:['G00 X0. Z2.','G74 R0.5','G74 Z-30. Q3000 F0.1','G00 Z50.'],
+   p:[['R','Retract after each peck'],['Z','Final depth'],['Q','Peck depth in µm, no decimal (3000 = 3 mm)'],['X / P','For face grooving: end X and step in X (µm)']]},
+  {id:'G75', t:'OD grooving / parting', code:['G00 X42. Z-20.','G75 R0.5','G75 X30. Z-26. P2000 Q2500 F0.08','G00 X100.'],
+   p:[['R','Retract after each peck'],['X','Groove bottom diameter'],['Z','Last plunge position (omit for one plunge)'],['P','Peck depth in X, µm per side'],['Q','Step in Z between plunges, µm (less than insert width)']]},
+  {id:'G76', t:'Multi-pass threading', code:['G00 X25. Z5.','G76 P020060 Q50 R0.02','G76 X17.546 Z-25. R0 P1227 Q350 F2.','G00 X100. Z100.'],
+   p:[['P020060','02 finish passes, 00 chamfer, 60° insert'],['Q (1st)','Smallest cut, µm'],['R (1st)','Finish allowance'],['X','Final (minor) diameter'],['Z','Thread end'],['R (2nd)','Taper (0 = straight)'],['P (2nd)','Thread height, µm (0.6134 × P)'],['Q (2nd)','First cut depth, µm'],['F','Pitch']], note:'M20 × 2 shown. Use the thread calculator to get X, P and Q for any size.'},
+  {id:'G92', t:'Threading, pass by pass', code:['G00 X25. Z5.','G92 X19.3 Z-25. F2.','X18.9','X18.5','X18.2','X17.9','X17.7','X17.546','G00 X100. Z100.'],
+   p:[['X','Diameter of this pass'],['Z','Thread end'],['R','Taper'],['F','Pitch']], note:'You control every pass, which makes it easy to add spring passes.'}],
+ mill:[
+  {id:'G81', t:'Drilling, spot drilling', code:['G90 G00 X10. Y10.','G43 Z50. H01','S1200 M03','G99 G81 X10. Y10. Z-15. R2. F150.','X30.','X50.','G80','G00 Z50.'],
+   p:[['X / Y','Hole position'],['Z','Hole bottom'],['R','R plane (rapid down to here)'],['F','Feed mm/min'],['G98 / G99','Return to start Z / to R plane between holes']], note:'The cycle repeats at every X/Y line until G80.'},
+  {id:'G82', t:'Counterbore, spot with dwell', code:['G99 G82 X10. Y10. Z-3. R2. P500 F100.','G80'], p:[['P','Dwell at the bottom in ms (500 = 0.5 s)'],['Z, R, F','As G81']]},
+  {id:'G83', t:'Deep hole peck drilling', code:['G99 G83 X10. Y10. Z-40. R2. Q5. F120.','G80'], p:[['Q','Depth of each peck'],['Z, R, F','As G81']], note:'Retracts fully to R after every peck to clear chips.'},
+  {id:'G73', t:'High-speed peck (chip break)', code:['G99 G73 X10. Y10. Z-30. R2. Q3. F150.','G80'], p:[['Q','Depth of each peck'],['Z, R, F','As G81']], note:'Retracts only a small distance (parameter 5114) to break the chip.'},
+  {id:'G84', t:'Rigid tapping, right hand', code:['M29 S500','G99 G84 X10. Y10. Z-20. R5. F750.','X30.','G80'], p:[['M29 S','Rigid tap mode and tapping speed'],['F','Feed = S × pitch (500 × 1.5 = 750 for M10)'],['Z, R','Thread depth and R plane']], note:'With G95 active, F is the pitch itself (F1.5).'},
+  {id:'G74', t:'Rigid tapping, left hand', code:['M29 S500','G99 G74 X10. Y10. Z-20. R5. F750.','G80'], p:[['F','Feed = S × pitch'],['Spindle','Runs reverse into the hole, forward out']]},
+  {id:'G85', t:'Boring, feed in and out', code:['G99 G85 X10. Y10. Z-25. R2. F80.','G80'], p:[['Z, R, F','Bore depth, R plane, feed'],['Out','Feeds back to R, good for reamers']]},
+  {id:'G86', t:'Boring, spindle stop, rapid out', code:['G98 G86 X10. Y10. Z-25. R2. F80.','G80'], p:[['Out','Spindle stops at bottom, rapids out (leaves a line in the bore)']]},
+  {id:'G76', t:'Fine boring with orient and shift', code:['G98 G76 X10. Y10. Z-25. R2. Q0.2 F60.','G80'], p:[['Q','Shift away from the wall before rapid out'],['Out','Spindle orients, shifts, rapids out: no marks']], note:'Set the shift direction with parameter 5101 and match the boring bar orientation.'},
+  {id:'G87', t:'Back boring', code:['G98 G87 X10. Y10. Z-5. R-25. Q0.3 F60.','G80'], p:[['R','Start level under the part'],['Z','Top of the back counterbore'],['Q','Orient shift to pass through the hole']], note:'Only G98 is allowed.'},
+  {id:'G89', t:'Boring with dwell', code:['G99 G89 X10. Y10. Z-15. R2. P500 F80.','G80'], p:[['P','Dwell at bottom, ms'],['Out','Feed out like G85']]}]
+};
+const CYM = { turn: CYF.turn, mill: CYF.mill.map(c=> c.id==='G84' ? {...c, code:['S500','G99 G84 X10. Y10. Z-20. R5. F750. ,R1','X30.','G80'], p:[[',R1','Synchronous (rigid) tapping. ,R0 = floating holder'],['F','Feed = S × pitch'],['Z, R','Thread depth and R plane']], note:'Whether ,R1 is needed depends on the synchronous-tap parameter on your machine.'}
+  : c.id==='G74' ? {...c, code:['S500','G99 G74 X10. Y10. Z-20. R5. F750. ,R1','G80'], p:[[',R1','Synchronous (rigid) tapping'],['F','Feed = S × pitch']]}
+  : c.id==='G73' ? {...c, note:'Retracts only a small distance (set by parameter) to break the chip.'}
+  : c.id==='G76' ? {...c, note:'Set the shift direction by parameter to match the boring bar orientation.'} : c)};
+const CYS = {
+ turn:[
+  {id:'CYCLE95', t:'Stock removal, OD rough + finish', code:['T1 D1','LIMS=3000','G96 S180 M3','G95 G0 X52 Z2','CYCLE95("PROFILE1",2,0.1,0.2,,0.25,0.15,0.1,9,,,0.5)','G0 X100 Z100','M30','; ---- PROFILE1.SPF ----','G1 X16 Z0','X20 Z-2','Z-15','X30 Z-25','Z-40','X52','M17'],
+   p:[['NPP','Contour name (subprogram or labels)'],['MID','Infeed depth per pass'],['FALZ / FALX','Finish allowance in Z / X'],['FAL','Allowance along the contour'],['FF1, FF2, FF3','Roughing, plunge and finishing feed'],['VARI','9 = longitudinal, external, rough + finish (1 rough, 5 finish)'],['DT, DAM','Chip-break dwell and path'],['_VRT','Lift distance']], note:'VARI groups: 1/5/9 OD longitudinal, 2/6/10 OD facing, 3/7/11 ID longitudinal, 4/8/12 ID facing.'},
+  {id:'CYCLE95', t:'Facing rough + finish (VARI 10)', code:['G0 X82 Z2','CYCLE95("FACE1",2,0.1,0.2,,0.25,0.15,0.1,10,,,0.5)'], p:[['VARI 10','Transverse (facing), external, rough + finish'],['MID','Depth per pass in Z']]},
+  {id:'CYCLE93', t:'Grooving', code:['G0 X44 Z-15','CYCLE93(40,-20,6,5,0,0,0,0.3,0.3,0.3,0.3,0.1,0.1,2,0.5,5,1)'],
+   p:[['SPD, SPL','Start diameter and Z of the groove'],['WIDG, DIAG','Groove width and depth'],['STA1','Contour angle'],['ANG1, ANG2','Flank angles'],['RCO / RCI','Corner radii or chamfers'],['FAL1, FAL2','Finish allowance bottom / flanks'],['IDEP','Infeed per peck'],['DTB','Dwell at bottom'],['VARI','Groove type and position code']], note:'Check the VARI value against the help screen on your control before running.'},
+  {id:'CYCLE97', t:'Thread cutting', code:['G0 X25 Z5','CYCLE97(2,,0,-25,20,20,4,2,1.227,0.02,30,0,8,1,3,1,1)'],
+   p:[['PIT / MPIT','Pitch, or metric size (MPIT 20 = M20 coarse)'],['SPL, FPL','Thread start and end Z'],['DM1, DM2','Diameter at start and end'],['APP, ROP','Run-in and run-out'],['TDEP','Thread depth'],['FAL','Finish allowance'],['IANG','Infeed angle (30 = flank)'],['NSP','Start angle offset'],['NRC, NID','Roughing passes, spring passes'],['VARI','3 = external, constant chip area (4 internal)'],['NUMT','Number of starts']], note:'Newer 828D software also offers CYCLE99 through the cycle form. Use the thread calculator for TDEP.'},
+  {id:'G33', t:'Thread, pass by pass', code:['G0 X25 Z5','X19.3','G33 Z-25 K2','G0 X25','Z5','X18.9','G33 Z-25 K2','G0 X25','Z5','; ...continue to X17.546'], p:[['K','Pitch (lead in Z)'],['Z','Thread end']], note:'Start each pass from the same Z so the threads line up.'},
+  {id:'CYCLE83', t:'Face drilling on the lathe', code:['G0 X0 Z5','G95 F0.1','CYCLE83(5,0,2,-30,,-5,,5,0,0,1,1)','G0 Z50'], p:[['RTP, RFP, SDIS','Return plane, face Z, safety'],['DP','Hole depth (absolute)'],['FDEP, DAM','First depth and peck size'],['VARI','1 = full retract for chip removal']]}],
+ mill:[
+  {id:'CYCLE81', t:'Drilling', code:['G0 Z50','F150 S1200 M3','MCALL CYCLE81(50,0,2,-15)','X10 Y10','X30','X50','MCALL'],
+   p:[['RTP','Return plane (absolute)'],['RFP','Reference plane, top face'],['SDIS','Safety distance above RFP'],['DP','Final depth (absolute)'],['DPR','Depth relative to RFP (use instead of DP)'],['MCALL','Repeats the cycle at every position until MCALL alone']]},
+  {id:'CYCLE82', t:'Drilling with dwell', code:['MCALL CYCLE82(50,0,2,-3,,0.5)','X10 Y10','MCALL'], p:[['DTB','Dwell at bottom in seconds']]},
+  {id:'CYCLE83', t:'Deep hole drilling', code:['F120 S1000 M3','MCALL CYCLE83(50,0,2,-40,,-5,,5,0,0,1,1)','X10 Y10','MCALL'],
+   p:[['FDEP / FDPR','First drilling depth (abs / rel)'],['DAM','Peck size after the first'],['DTB, DTS','Dwell at bottom / at start'],['FRF','Feed factor for first depth'],['VARI','0 = chip break, 1 = full retract']]},
+  {id:'CYCLE84', t:'Rigid tapping', code:['G0 X10 Y10 Z50','CYCLE84(50,0,2,-20,,0,3,10,,0,500,800)'],
+   p:[['SDAC','Spindle direction after the cycle (3 = M3)'],['MPIT','Metric size for coarse pitch (10 = M10); negative = left hand'],['PIT','Pitch if not standard'],['POSS','Spindle stop angle'],['SST, SST1','Tapping speed / retract speed']]},
+  {id:'CYCLE840', t:'Tapping with floating holder', code:['S300 M3','F450','CYCLE840(50,0,2,-20,,0,4,3,1,10)'], p:[['SDR','Direction for retract (4 = M4)'],['SDAC','Direction after cycle'],['ENC','1 = without encoder'],['MPIT','Metric size']]},
+  {id:'CYCLE85', t:'Boring, feed in and out', code:['MCALL CYCLE85(50,0,2,-25,,0,80,200)','X10 Y10','MCALL'], p:[['FFR','Feed in'],['RFF','Feed out']]},
+  {id:'CYCLE86', t:'Boring with orient and lift', code:['S600 M3 F60','MCALL CYCLE86(50,0,2,-25,,0,3,-0.2,0,1,0)','X10 Y10','MCALL'], p:[['SDIR','Spindle direction (3 = M3)'],['RPA, RPO','Lift away in X and Y'],['RPAP','Lift in Z'],['POSS','Orientation angle']], note:'Match RPA/RPO to the boring bar tip direction at POSS.'},
+  {id:'CYCLE87', t:'Boring, stop for manual retract', code:['MCALL CYCLE87(50,0,2,-25,,3)','X10 Y10','MCALL'], p:[['SDIR','Spindle direction'],['Stop','M5 + M0 at the bottom; operator retracts']]},
+  {id:'CYCLE88', t:'Boring with dwell and stop', code:['MCALL CYCLE88(50,0,2,-25,,1,3)','X10 Y10','MCALL'], p:[['DTB','Dwell at bottom'],['SDIR','Spindle direction']]},
+  {id:'CYCLE89', t:'Boring with dwell, feed out', code:['MCALL CYCLE89(50,0,2,-25,,1)','X10 Y10','MCALL'], p:[['DTB','Dwell at bottom']]},
+  {id:'HOLES1', t:'Row of holes', code:['MCALL CYCLE81(50,0,2,-15)','HOLES1(10,20,0,10,20,5)','MCALL'], p:[['SPCA, SPCO','Reference point X, Y'],['STA1','Angle of the row'],['FDIS','Distance to first hole'],['DBH','Spacing'],['NUM','Number of holes']]},
+  {id:'HOLES2', t:'Holes on a circle', code:['MCALL CYCLE81(50,0,2,-15)','HOLES2(50,50,40,0,0,6)','MCALL'], p:[['CPA, CPO','Circle centre X, Y'],['RAD','Radius'],['STA1','Start angle'],['INDA','Index angle (0 = equal spacing)'],['NUM','Number of holes']]}]
+};
+let cycKind='turn';
+function renderCycles(){
+  const set = st.ctrl==='fanuc'?CYF:st.ctrl==='mits'?CYM:CYS;
+  $('cycKind').replaceChildren(...[['turn','Turning','Lathe cycles'],['mill','Milling','Machining centre']].map(([k,a,b])=>keyBtn(a,b,cycKind===k,()=>{cycKind=k;renderCycles();})));
+  $('cycNote').textContent = {
+    fanuc: cycKind==='turn' ? 'FANUC 0i-TF, G code system A: X in diameter, F in mm/rev (G99).' : 'FANUC 0i-MF: F in mm/min (G94). G98 returns to the start Z, G99 to the R plane. G80 cancels.',
+    mits: cycKind==='turn' ? 'Mitsubishi M80 L system with G-code list 2/3 uses the same formats as FANUC: X in diameter, F in mm/rev.' : 'Mitsubishi M80 M system: same cycle format as FANUC. G98 / G99 return levels, G80 cancels.',
+    siemens: cycKind==='turn' ? '828D turning: X in diameter. Cycles are filled in from the Turning softkey form; the call line below is what the form writes.' : '828D milling: positions after MCALL repeat the cycle. RTP and DP are absolute Z values.'
+  }[st.ctrl];
+  $('cycList').innerHTML = set[cycKind].map((c,i)=>`<details class="cy"${i===0?' open':''}><summary><b>${c.id}</b><span>${esc(c.t)}</span></summary><div class="body">${snip(`cy-${i}`, `${c.id} · ${CTRL[st.ctrl].name}`, c.code)}<dl class="plist">${c.p.map(([a,b])=>`<dt>${esc(a)}</dt><dd>${esc(b)}</dd>`).join('')}</dl>${c.note?`<p class="mono-note" style="margin:0">${esc(c.note)}</p>`:''}</div></details>`).join('');
+}
+
+/* ---------- thread charts ---------- */
+const IN=25.4;
+const ISO60=(D,P)=>({d2:D-0.6495*P, d3:D-1.2269*P, D1:D-1.0825*P, he:0.6134*P, hi:0.5413*P});
+const WH55=(D,P)=>({d2:D-0.6403*P, mn:D-1.2807*P, h:0.6403*P});
+const mm3=n=>fx(n,3), mm2=n=>fx(n,2);
+const THR = {
+ metric:{k:'Metric', s:'ISO coarse', angle:60, rows:[['M1.6',1.6,0.35],['M2',2,0.4],['M2.5',2.5,0.45],['M3',3,0.5],['M4',4,0.7],['M5',5,0.8],['M6',6,1],['M8',8,1.25],['M10',10,1.5],['M12',12,1.75],['M14',14,2],['M16',16,2],['M18',18,2.5],['M20',20,2.5],['M22',22,2.5],['M24',24,3],['M27',27,3],['M30',30,3.5],['M33',33,3.5],['M36',36,4],['M39',39,4],['M42',42,4.5],['M45',45,4.5],['M48',48,5],['M52',52,5],['M56',56,5.5],['M60',60,5.5],['M64',64,6]], def:13,
+   note:'ISO 261 / 965. Coarse pitch is the default: M20 means M20 × 2.5. Values are basic sizes before tolerance (6g / 6H).'},
+ mfine:{k:'Metric fine', s:'ISO fine', angle:60, rows:[['M8×1',8,1],['M10×1',10,1],['M10×1.25',10,1.25],['M12×1.25',12,1.25],['M12×1.5',12,1.5],['M14×1.5',14,1.5],['M16×1.5',16,1.5],['M18×1.5',18,1.5],['M20×1.5',20,1.5],['M22×1.5',22,1.5],['M24×1.5',24,1.5],['M24×2',24,2],['M27×2',27,2],['M30×1.5',30,1.5],['M30×2',30,2],['M33×2',33,2],['M36×1.5',36,1.5],['M36×3',36,3],['M42×3',42,3],['M48×3',48,3],['M56×4',56,4],['M64×4',64,4]], def:8,
+   note:'Same 60° profile as coarse; always write the pitch in the size (M20×1.5).'},
+ unc:{k:'UNC', s:'Unified coarse', angle:60, inch:1, rows:[['#2-56',0.086,56],['#4-40',0.112,40],['#5-40',0.125,40],['#6-32',0.138,32],['#8-32',0.164,32],['#10-24',0.19,24],['1/4-20',0.25,20],['5/16-18',0.3125,18],['3/8-16',0.375,16],['7/16-14',0.4375,14],['1/2-13',0.5,13],['9/16-12',0.5625,12],['5/8-11',0.625,11],['3/4-10',0.75,10],['7/8-9',0.875,9],['1-8',1,8],['1 1/8-7',1.125,7],['1 1/4-7',1.25,7],['1 3/8-6',1.375,6],['1 1/2-6',1.5,6],['1 3/4-5',1.75,5],['2-4.5',2,4.5]], def:10,
+   note:'ASME B1.1, 60° (same profile as metric). Classes 2A external / 2B internal are the usual fit.'},
+ unf:{k:'UNF', s:'Unified fine', angle:60, inch:1, rows:[['#4-48',0.112,48],['#6-40',0.138,40],['#8-36',0.164,36],['#10-32',0.19,32],['1/4-28',0.25,28],['5/16-24',0.3125,24],['3/8-24',0.375,24],['7/16-20',0.4375,20],['1/2-20',0.5,20],['9/16-18',0.5625,18],['5/8-18',0.625,18],['3/4-16',0.75,16],['7/8-14',0.875,14],['1-12',1,12],['1 1/8-12',1.125,12],['1 1/4-12',1.25,12],['1 3/8-12',1.375,12],['1 1/2-12',1.5,12]], def:8,
+   note:'ASME B1.1 fine series, 60°. Used for hydraulics, aerospace and thin walls.'},
+ bsw:{k:'BSW', s:'Whitworth coarse', angle:55, inch:1, rows:[['1/8',0.125,40],['3/16',0.1875,24],['1/4',0.25,20],['5/16',0.3125,18],['3/8',0.375,16],['7/16',0.4375,14],['1/2',0.5,12],['5/8',0.625,11],['3/4',0.75,10],['7/8',0.875,9],['1',1,8],['1 1/8',1.125,7],['1 1/4',1.25,7],['1 1/2',1.5,6],['1 3/4',1.75,5],['2',2,4.5]], def:6,
+   note:'BS 84, 55° with rounded crest and root (r = 0.1373 × P). Use a 55° insert.'},
+ bsf:{k:'BSF', s:'Whitworth fine', angle:55, inch:1, rows:[['3/16',0.1875,32],['7/32',0.21875,28],['1/4',0.25,26],['9/32',0.28125,26],['5/16',0.3125,22],['3/8',0.375,20],['7/16',0.4375,18],['1/2',0.5,16],['9/16',0.5625,16],['5/8',0.625,14],['11/16',0.6875,14],['3/4',0.75,12],['7/8',0.875,11],['1',1,10],['1 1/8',1.125,9],['1 1/4',1.25,9],['1 1/2',1.5,8],['1 3/4',1.75,7],['2',2,7]], def:7,
+   note:'BS 84 fine series, same 55° Whitworth form.'},
+ bsp:{k:'BSP (G)', s:'Pipe, parallel', angle:55, rows:[['G1/16',7.723,28],['G1/8',9.728,28],['G1/4',13.157,19],['G3/8',16.662,19],['G1/2',20.955,14],['G5/8',22.911,14],['G3/4',26.441,14],['G1',33.249,11],['G1 1/4',41.91,11],['G1 1/2',47.803,11],['G2',59.614,11],['G2 1/2',75.184,11],['G3',87.884,11],['G4',113.03,11]], def:4,
+   note:'ISO 228-1, 55° Whitworth form, parallel. Size is the old pipe bore, not the thread diameter.'},
+ bspt:{k:'BSPT (R)', s:'Pipe, taper', angle:55, taper:1/16, rows:[['R1/16',7.723,28,4.0],['R1/8',9.728,28,4.0],['R1/4',13.157,19,6.0],['R3/8',16.662,19,6.4],['R1/2',20.955,14,8.2],['R3/4',26.441,14,9.5],['R1',33.249,11,10.4],['R1 1/4',41.91,11,12.7],['R1 1/2',47.803,11,12.7],['R2',59.614,11,15.9],['R2 1/2',75.184,11,17.5],['R3',87.884,11,20.6],['R4',113.03,11,25.4]], def:4,
+   note:'ISO 7 / BS 21, 55°, taper 1:16. R = external, Rc = internal taper, Rp = internal parallel. Gauge diameter sits at the gauge length from the pipe end (external) or at the face (internal).'},
+ npt:{k:'NPT', s:'US pipe, taper', angle:60, taper:1/16, inch:1, rows:[['1/16',0.3125,27,0.27118,0.160,0.2611,0.246],['1/8',0.405,27,0.36351,0.180,0.2639,0.34375],['1/4',0.54,18,0.47739,0.200,0.4018,0.4375],['3/8',0.675,18,0.61201,0.240,0.4078,0.578125],['1/2',0.84,14,0.75843,0.320,0.5337,0.71875],['3/4',1.05,14,0.96768,0.339,0.5457,0.921875],['1',1.315,11.5,1.21363,0.400,0.6828,1.15625],['1 1/4',1.66,11.5,1.55713,0.420,0.7068,1.5],['1 1/2',1.9,11.5,1.79609,0.420,0.7235,1.734375],['2',2.375,11.5,2.26902,0.436,0.7565,2.21875],['2 1/2',2.875,8,2.71953,0.682,1.1375,2.625],['3',3.5,8,3.34062,0.766,1.2,3.25],['4',4.5,8,4.33438,0.844,1.3,4.25]], def:4,
+   note:'ASME B1.20.1, 60°, taper 1:16. E0 = pitch dia at the small end of the pipe, L1 = hand-tight engagement, L2 = effective thread length. Thread height 0.8 × P.'},
+ acme:{k:'ACME', s:'29° general purpose', angle:29, inch:1, rows:[['1/4-16',0.25,16],['5/16-14',0.3125,14],['3/8-12',0.375,12],['7/16-12',0.4375,12],['1/2-10',0.5,10],['5/8-8',0.625,8],['3/4-6',0.75,6],['7/8-6',0.875,6],['1-5',1,5],['1 1/8-5',1.125,5],['1 1/4-5',1.25,5],['1 3/8-4',1.375,4],['1 1/2-4',1.5,4],['1 3/4-4',1.75,4],['2-4',2,4],['2 1/4-3',2.25,3],['2 1/2-3',2.5,3],['2 3/4-3',2.75,3],['3-2',3,2],['3 1/2-2',3.5,2],['4-2',4,2],['4 1/2-2',4.5,2],['5-2',5,2]], def:8,
+   note:'ASME B1.5 general purpose (2G), 29°. Basic height 0.5 × P plus root clearance (0.010″ for 10 TPI and coarser, 0.005″ finer). Flat at crest 0.3707 × P. Use flank infeed.'},
+ api:{k:'API round', s:'Tubing & casing', angle:60, taper:1/16, inch:1, rows:[['1.050 NUE','Tubing',1.05,10],['1.315 NUE','Tubing',1.315,10],['1.660 NUE','Tubing',1.66,10],['1.900 NUE','Tubing',1.9,10],['2 3/8 NUE','Tubing',2.375,10],['2 7/8 NUE','Tubing',2.875,10],['3 1/2 NUE','Tubing',3.5,10],['4 NUE','Tubing',4,8],['4 1/2 NUE','Tubing',4.5,8],['2 3/8 EUE','Upset tubing',2.594,8],['2 7/8 EUE','Upset tubing',3.094,8],['3 1/2 EUE','Upset tubing',3.75,8],['4 1/2 EUE','Upset tubing',4.75,8],['4 1/2 STC/LTC','Casing',4.5,8],['5 STC/LTC','Casing',5,8],['5 1/2 STC/LTC','Casing',5.5,8],['7 STC/LTC','Casing',7,8],['9 5/8 STC/LTC','Casing',9.625,8],['13 3/8 STC','Casing',13.375,8]], def:10,
+   note:'API 5B round thread, 60°, taper 1:16. Height 0.07125″ (8-round) or 0.05560″ (10-round). For the program, take the pitch dia, length and stand-off for your connection from the API 5B gauge tables: the start diameter below is an estimate.'}
+};
+// geometry → mm values used by chart and program
+function thrGeom(key,r){
+  const t=THR[key];
+  if(key==='metric'||key==='mfine'){ const [,D,P]=r, g=ISO60(D,P); return {P, ext:{maj0:D,fin0:g.d3,h:g.he}, int:{bore0:g.D1,fin0:D,h:g.hi}, L:Math.max(10,fx(1.5*D,0)), cells:[r[0],mm3(P),mm3(D),mm3(g.d2),mm3(g.d3),mm3(g.D1),mm2(D-P)]}; }
+  if(key==='unc'||key==='unf'){ const [,Di,tpi]=r, D=Di*IN, P=IN/tpi, g=ISO60(D,P); return {P, ext:{maj0:D,fin0:g.d3,h:g.he}, int:{bore0:g.D1,fin0:D,h:g.hi}, L:Math.max(10,+fx(1.5*D,0)), cells:[r[0],tpi,fx(Di,4),mm3(D),mm3(g.d2),mm3(g.d3),mm3(g.D1),mm2(D-P)]}; }
+  if(key==='bsw'||key==='bsf'){ const [,Di,tpi]=r, D=Di*IN, P=IN/tpi, g=WH55(D,P); return {P, ext:{maj0:D,fin0:g.mn,h:g.h}, int:{bore0:g.mn,fin0:D,h:g.h}, L:Math.max(10,+fx(1.5*D,0)), cells:[r[0],tpi,mm3(D),mm3(g.d2),mm3(g.mn),mm2(D-P)]}; }
+  if(key==='bsp'){ const [,D,tpi]=r, P=IN/tpi, g=WH55(D,P); return {P, ext:{maj0:D,fin0:g.mn,h:g.h}, int:{bore0:g.mn,fin0:D,h:g.h}, L:+fx(Math.max(10,0.6*D),0), cells:[r[0],tpi,mm3(P),mm3(D),mm3(g.d2),mm3(g.mn),mm2(D-P)]}; }
+  if(key==='bspt'){ const [,D,tpi,gl]=r, P=IN/tpi, g=WH55(D,P), m0=D-gl/16; return {P, ext:{maj0:m0,fin0:m0-2*g.h,h:g.h}, int:{bore0:D-2*g.h,fin0:D,h:g.h}, L:+fx(gl+4*P,1), cells:[r[0],tpi,mm3(D),mm3(g.d2),fx(gl,1),mm3(m0),mm2(D-2*g.h)]}; }
+  if(key==='npt'){ const [,OD,tpi,E0,L1,L2,td]=r, P=1/tpi, h=0.8*P, E1=E0+L1/16;
+    return {P:P*IN, ext:{maj0:(E0+h)*IN,fin0:(E0-h)*IN,h:h*IN}, int:{bore0:(E1-h)*IN,fin0:(E1+h)*IN,h:h*IN}, L:+fx(L2*IN,2), cells:[r[0],tpi,fx(OD,3),fx(E0,5),fx(L1,3),fx(L2,4),mm2(td*IN)]}; }
+  if(key==='acme'){ const [,Di,tpi]=r, P=1/tpi, c=tpi>10?0.005:0.010, h=0.5*P+c;
+    return {P:P*IN, ext:{maj0:Di*IN,fin0:(Di-2*h)*IN,h:h*IN}, int:{bore0:(Di-P)*IN,fin0:(Di+2*c)*IN,h:h*IN}, L:+fx(Math.max(25,2*Di*IN),0), cells:[r[0],tpi,fx(Di,4),mm3(Di*IN),mm3((Di-0.5*P)*IN),mm3((Di-2*h)*IN),mm3((Di-P)*IN),mm3(0.3707*P*IN)]}; }
+  if(key==='api'){ const [,typ,OD,tpi]=r, P=1/tpi, h=tpi===8?0.07125:0.0556, L=OD<=4.8?2.0:3.0, m0=(OD-L/16)*IN;
+    return {P:P*IN, ext:{maj0:m0,fin0:m0-2*h*IN,h:h*IN}, int:{bore0:OD*IN-2*h*IN,fin0:OD*IN,h:h*IN}, L:+fx(L*IN,1), est:1, cells:[r[0],typ,fx(OD,3),tpi,fx(h,5),'1 : 16']}; }
+}
+const THRCOLS={
+  metric:['Size','Pitch','Major','Pitch dia','Minor ext','Minor int','Tap drill'],
+  unc:['Size','TPI','Major in','Major mm','Pitch dia','Minor ext','Minor int','Tap drill'],
+  bsw:['Size','TPI','Major mm','Pitch dia','Minor','Tap drill ≈'],
+  bsp:['Size','TPI','Pitch mm','Major','Pitch dia','Minor','Tap drill ≈'],
+  bspt:['Size','TPI','Gauge dia','Pitch dia','Gauge length','Major at pipe end','Rc bore at face'],
+  npt:['Size','TPI','Pipe OD in','E0 in','L1 in','L2 in','Tap drill mm'],
+  acme:['Size','TPI','Major in','Major mm','Pitch dia','Minor ext','Minor int','Crest flat'],
+  api:['Connection','Type','OD in','TPI','Height in','Taper']
+};
+THRCOLS.mfine=THRCOLS.metric; THRCOLS.unf=THRCOLS.unc; THRCOLS.bsf=THRCOLS.bsw;
+const tv=(k,d)=>st.vals['thr.'+k]??d;
+function renderThreads(){
+  const key=tv('std','metric'), t=THR[key];
+  $('thrStd').replaceChildren(...Object.entries(THR).map(([k,x])=>keyBtn(x.k,x.s,k===key,()=>{st.vals['thr.std']=k;delete st.vals['thr.L'];delete st.vals['thr.d0'];save();renderThreads();})));
+  const idx=Math.min(+tv('idx.'+key,t.def), t.rows.length-1);
+  $('thrTitle').textContent=`${t.k} thread chart`;
+  $('thrForm2').textContent=t.inch&&key!=='npt'&&key!=='api'?'inch sizes, mm values':(key==='npt'||key==='api')?'inch standard':'mm';
+  const chips=[`${t.angle}° flank angle`, t.taper?'Taper 1 : 16 on diameter':'Parallel', t.inch?'Pitch = 25.4 ÷ TPI mm':'Pitch in mm'];
+  $('thrInfo').innerHTML=chips.map(c=>`<span class="chip">${esc(c)}</span>`).join('');
+  $('thrNote').textContent=t.note;
+  $('thrChart').innerHTML=`<table class="t chart"><thead><tr>${THRCOLS[key].map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>${t.rows.map((r,i)=>`<tr data-i="${i}"${i===idx?' class="sel"':''}>${thrGeom(key,r).cells.map(c=>`<td>${esc(String(c))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  $('thrChart').querySelectorAll('tbody tr').forEach(tr=>tr.onclick=()=>{ st.vals['thr.idx.'+key]=tr.dataset.i; delete st.vals['thr.L']; delete st.vals['thr.d0']; save(); renderThreads(); });
+  // form
+  const g=thrGeom(key,t.rows[idx]);
+  const fields=[
+    {id:'kind',label:'Thread',type:'select',def:'ext',opts:[['ext',t.taper?'External (pipe)':'External (OD)'],['int',t.taper?'Internal (fitting)':'Internal (ID)']]},
+    {id:'L',label:'Thread length',unit:'mm',def:g.L},
+    {id:'np',label:'Passes (0 = auto)',def:0},
+    {id:'rpm',label:'Spindle',unit:'rpm',def:600}];
+  if(g.est) fields.push({id:'d0',label:'Major dia at Z0 (from API 5B)',unit:'mm',def:+fx(tv('kind','ext')==='ext'?g.ext.maj0:g.int.fin0,3)});
+  $('thrSel').textContent=`${t.k} ${t.rows[idx][0]}`;
+  $('thrForm').innerHTML=fields.map(f=>{ const id='thr-'+f.id, val=tv(f.id,f.def);
+    const inner=f.type==='select'?`<select id="${id}">${f.opts.map(([o,l])=>`<option value="${o}"${val===o?' selected':''}>${l}</option>`).join('')}</select>`:`<input id="${id}" type="number" inputmode="decimal" step="any" value="${val}">${f.unit?`<span class="unit">${f.unit}</span>`:''}`;
+    return `<div class="field"><label for="${id}">${f.label}</label><div class="inp">${inner}</div></div>`; }).join('');
+  fields.forEach(f=>{ const el=$('thr-'+f.id); el.addEventListener(f.type==='select'?'change':'input',()=>{ st.vals['thr.'+f.id]=el.value; if(f.id==='kind') delete st.vals['thr.d0']; save(); if(f.id==='kind') renderThreads(); else thrOut(key,g,t); }); });
+  thrOut(key,g,t);
+}
+function thrOut(key,g,t){
+  const kind=tv('kind','ext'), ext=kind==='ext', L=parseFloat(tv('L',g.L)), np=Math.round(parseFloat(tv('np',0))||0), rpm=Math.round(parseFloat(tv('rpm',600))||600);
+  if(!(L>0)){ $('thrOut').innerHTML='<p class="warnline">Thread length: enter a value above 0</p>'; return; }
+  const k={...g[kind]};
+  if(g.est){ const d0=parseFloat(tv('d0',ext?g.ext.maj0:g.int.fin0)); if(d0>0){ if(ext){k.maj0=d0;k.fin0=d0-2*k.h;} else {k.fin0=d0;k.bore0=d0-2*k.h;} } }
+  const P=g.P, tp=t.taper||0, dir=ext?1:-1, zs=+fx(Math.max(3,2*P),1);
+  const maj0=ext?k.maj0:k.fin0, majEnd=maj0+dir*tp*L, finEnd=k.fin0+dir*tp*L;
+  const startX=ext? majEnd+2 : (k.bore0-tp*(ext?0:L))-1;
+  const iR=tp? (ext?-1:1)*(zs+L)*tp/2 : 0;
+  const n=Math.max(2,np||Math.round(autoPasses(P)*(t.angle===29?1.5:1))), cum=[];
+  for(let i=1;i<=n;i++) cum.push(k.h*Math.sqrt(i===1?0.3:i-1)/Math.sqrt(n-1));
+  const name=`${t.k.replace(/\s*\(.*\)/,'')} ${t.rows[+tv('idx.'+key,t.def)]?.[0]??''} ${ext?'EXTERNAL':'INTERNAL'}`.toUpperCase();
+  const Fp=t.inch?+P.toFixed(4):+P.toFixed(4);
+  let lines;
+  if(isF(st.ctrl)){
+    lines=[`(${name})`, `(PITCH ${fx(P,4)} MM - ${t.angle} DEG${tp?' - TAPER 1:16':''})`, 'G97 S'+rpm+' M03', `G00 X${F(+fx(startX,3))} Z${F(zs)}`,
+      `G76 P0200${String(t.angle).padStart(2,'0')} Q${t.angle===29?20:50} R0.02`,
+      `G76 X${F(+fx(finEnd,3))} Z${F(-L)}${tp?` R${F(+fx(iR,4))}`:' R0'} P${Math.round(k.h*1000)} Q${Math.round(cum[0]*1000)} F${F(Fp)}`, 'G00 X150. Z100.'];
+  } else {
+    lines=[`; ${name}`, `; PITCH ${fx(P,4)} MM - ${t.angle} DEG${tp?' - TAPER 1:16':''}`, `G97 S${rpm} M3`, `G0 X${fx(startX,3)} Z${fx(zs,3)}`,
+      `CYCLE97(${fx(P,4)},,0,${fx(-L,3)},${fx(maj0,3)},${fx(majEnd,3)},${fx(2*P,3)},${fx(P,3)},${fx(k.h,4)},0.02,${fx(t.angle/2,1)},0,${n},1,${ext?3:4},1,1)`, 'G0 X150 Z100'];
+  }
+  const rows=cum.map((c,i)=>[i+1, fx(c-(i?cum[i-1]:0),3), fx(c,3), fx(ext?k.maj0-2*c:k.bore0+2*c,3)]);
+  $('thrOut').innerHTML = tiles([['Thread depth',fx(k.h,3),'mm',1],[ext?'Final X at Z0':'Final X at Z0',fx(k.fin0,3),'mm',1],...(tp?[['Final X at end',fx(finEnd,3),'mm'],['Taper R (G76)',fx(iR,4),'mm']]:[]),['Pitch',fx(P,4),'mm'],['Passes',n,'']])+
+    (g.est?'<p class="warnline">Start diameter is an estimate. Enter the value from the API 5B table for your connection before cutting.</p>':'')+
+    snip('thr-prog', `${CTRL[st.ctrl].name} · ${isF(st.ctrl)?'G76':'CYCLE97'}`, lines)+
+    `<div class="tw"><table class="t"><thead><tr><th>Pass</th><th>Cut</th><th>Total depth</th><th>X at Z0</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`).join('')}</tbody></table></div>`+
+    `<p class="mono-note" style="margin:0">Z0 = ${tp?(ext?'pipe end (small end)':'face of the fitting (large end)'):'start of the thread'}. ${t.inch?'Inch pitch is written in mm to 4 decimals; on long threads check the lead, or use G20 with an E/TPI address if your control supports it. ':''}${t.angle===29?'For ACME use a 29° insert ground to the root flat width and flank infeed. ':''}Add spring passes or adjust the final X to suit your gauge.</p>`;
+}
+
+/* ---------- geometry & compensation ---------- */
+const dms=d=>{ const s=Math.round(Math.abs(d)*3600), D=Math.floor(s/3600), M=Math.floor((s%3600)/60), S=s%60; return `${d<0?'-':''}${D}° ${M}′ ${S}″`; };
+const rad=d=>d*Math.PI/180, deg=r=>r*180/Math.PI;
+const fPt=n=>F(+fx(n,3)), sPt=n=>fx(n,3);
+const progSnip=(key,title,fan,sie)=>snip(key, `${CTRL[st.ctrl].name} · ${title}`, isF(st.ctrl)?fan:sie);
+function arcSolve(u1,v1,u2,v2,R,cw,big){
+  const du=u2-u1, dv=v2-v1, d=Math.hypot(du,dv);
+  if(d===0||d>2*R+1e-9) return null;
+  const h=Math.sqrt(Math.max(0,R*R-d*d/4)), mu=(u1+u2)/2, mv=(v1+v2)/2, lu=-dv/d, lv=du/d;
+  const sgn=(cw?-1:1)*(big?-1:1), cu=mu+sgn*h*lu, cv=mv+sgn*h*lv;
+  const ang=2*deg(Math.asin(Math.min(1,d/(2*R)))), sweep=big?360-ang:ang;
+  return {cu,cv,chord:d,sweep,len:rad(sweep)*R,sag:R-h};
+}
+const GEO=[
+  {id:'tri', title:'Angle solver', sub:'Right-angle triangle · enter any two', fields:[
+    {id:'a',label:'Side a (opposite A)',unit:'mm',def:10,opt:1},{id:'b',label:'Side b (adjacent A)',unit:'mm',def:'',opt:1},
+    {id:'c',label:'Hypotenuse c',unit:'mm',def:'',opt:1},{id:'A',label:'Angle A',unit:'°',def:30,opt:1}],
+   out(v){
+    const has=k=>isFinite(v[k])&&v[k]>0, given=['a','b','c','A'].filter(has);
+    if(given.length<2) return '<p class="warnline">Enter any two values (at least one side).</p>';
+    if(given.length>2) return '<p class="warnline">Enter only two values. Clear the others to solve.</p>';
+    let {a,b,c,A}=v, k=given.join('');
+    if(has('A')&&v.A>=90) return '<p class="warnline">Angle A must be less than 90°.</p>';
+    if(k==='ab'){ c=Math.hypot(a,b); A=deg(Math.atan(a/b)); }
+    else if(k==='ac'){ if(c<=a) return '<p class="warnline">The hypotenuse must be longer than side a.</p>'; b=Math.sqrt(c*c-a*a); A=deg(Math.asin(a/c)); }
+    else if(k==='bc'){ if(c<=b) return '<p class="warnline">The hypotenuse must be longer than side b.</p>'; a=Math.sqrt(c*c-b*b); A=deg(Math.acos(b/c)); }
+    else if(k==='aA'){ b=a/Math.tan(rad(A)); c=a/Math.sin(rad(A)); }
+    else if(k==='bA'){ a=b*Math.tan(rad(A)); c=b/Math.cos(rad(A)); }
+    else if(k==='cA'){ a=c*Math.sin(rad(A)); b=c*Math.cos(rad(A)); }
+    else return '<p class="warnline">Enter at least one side.</p>';
+    const B=90-A, sc=Math.min(220/b, 120/a), W=b*sc, H=a*sc, x0=60, y0=150;
+    const svg=`<svg class="tri" viewBox="0 0 340 185"><polygon class="shape" points="${x0},${y0} ${x0+W},${y0} ${x0+W},${y0-H}"/>
+      <text x="${x0+W/2}" y="${y0+18}" text-anchor="middle">b = ${fx(b,3)}</text><text x="${x0+W+6}" y="${y0-H/2+4}">a = ${fx(a,3)}</text>
+      <text x="${x0+W/2-10}" y="${y0-H/2-8}" text-anchor="end">c = ${fx(c,3)}</text>
+      <text class="lab" x="${x0+20}" y="${y0-6}">A</text><text class="lab" x="${x0+W-16}" y="${y0-H+24}">B</text>
+      <rect x="${x0+W-10}" y="${y0-10}" width="10" height="10" fill="none" stroke="var(--muted)"/></svg>`;
+    return svg+tiles([['Side a',fx(a,4),'mm'],['Side b',fx(b,4),'mm'],['Hypotenuse c',fx(c,4),'mm'],['Angle A',fx(A,4),'°',1],['Angle B',fx(B,4),'°',1],['A in D° M′ S″',dms(A)]])+
+      `<p class="mono-note" style="margin:0">sin A = a ÷ c · cos A = b ÷ c · tan A = a ÷ b. On a lathe, a radial side a is ${fx(2*a,4)} mm on X (diameter).</p>`; }},
+  {id:'taper', title:'Taper & chamfer solver', sub:'Turning', fields:[
+    {id:'mode',label:'Find',type:'select',def:'angle',opts:[['angle','Angle (from D, d, L)'],['len','Length (from D, d, angle)'],['small','Small dia (from D, L, angle)']]},
+    {id:'D',label:'Large dia D',unit:'mm',def:40,opt:1},{id:'d',label:'Small dia d',unit:'mm',def:30,opt:1},
+    {id:'L',label:'Length L',unit:'mm',def:20,opt:1},{id:'ang',label:'Half angle α',unit:'°',def:15,opt:1},{id:'f',label:'Feed',unit:'mm/rev',def:0.15,min:0.001}],
+   out(v){
+    let {D,d,L,ang}=v;
+    if(!(D>0)) return '<p class="warnline">Enter the large diameter D.</p>';
+    if(v.mode==='angle'){ if(!(d>=0&&d<D&&L>0)) return '<p class="warnline">Enter small dia d (less than D) and length L.</p>'; ang=deg(Math.atan((D-d)/2/L)); }
+    else if(v.mode==='len'){ if(!(d>=0&&d<D&&ang>0&&ang<90)) return '<p class="warnline">Enter small dia d and an angle between 0 and 90°.</p>'; L=(D-d)/2/Math.tan(rad(ang)); }
+    else { if(!(L>0&&ang>0&&ang<90)) return '<p class="warnline">Enter length L and an angle between 0 and 90°.</p>'; d=D-2*L*Math.tan(rad(ang)); if(d<0) return '<p class="warnline">That angle and length go past the centre line.</p>'; }
+    const ratio=L/(D-d);
+    const fan=[`(TAPER D${fx(d,3)} TO D${fx(D,3)} - ${fx(ang,3)} DEG)`, `G00 X${fPt(d)} Z2.`, `G01 Z0. F${F(v.f)}`, `X${fPt(D)} Z${fPt(-L)}`, `G00 X${fPt(D+4)}`];
+    const sie=[`; TAPER D${fx(d,3)} TO D${fx(D,3)} - ${fx(ang,3)} DEG`, `G0 X${sPt(d)} Z2`, `G1 Z0 F${fx(v.f,3)}`, `X${sPt(D)} Z${sPt(-L)}`, `; same move by angle: G1 Z${sPt(-L)} ANG=${fx(180-ang,4)}`, `G0 X${sPt(D+4)}`];
+    return tiles([['Half angle α',fx(ang,4),'°',1],['α in D° M′ S″',dms(ang)],['Included angle',fx(2*ang,4),'°'],['Small dia d',fx(d,3),'mm'],['Length L',fx(L,3),'mm'],['Taper',`1 : ${fx(ratio,3)}`,''],['Per side',fx((D-d)/2,3),'mm']])+
+      progSnip('g-taper','taper move',fan,sie)+
+      `<p class="mono-note" style="margin:0">tan α = (D − d) ÷ 2L. Taper 1 : x means the diameter changes 1 mm every x mm. Use G42 nose radius compensation or the angle correction on the Tool comp tab.</p>`; }},
+  {id:'arc', title:'Radius / arc solver', sub:'G02 / G03 centre, I J K, R', fields:[
+    {id:'pl',label:'Machine',type:'select',def:'turn',opts:[['turn','Turning (X dia, Z)'],['mill','Milling (X, Y)']]},
+    {id:'x1',label:'Start X',unit:'mm',def:20},{id:'y1',label:'Start Z / Y',unit:'mm',def:-10},
+    {id:'x2',label:'End X',unit:'mm',def:30},{id:'y2',label:'End Z / Y',unit:'mm',def:-15},
+    {id:'r',label:'Radius R',unit:'mm',def:5,min:0.001},
+    {id:'dir',label:'Direction',type:'select',def:'cw',opts:[['cw','G02 clockwise'],['ccw','G03 counter-clockwise']]},
+    {id:'big',label:'Arc size',type:'select',def:'small',opts:[['small','180° or less'],['big','More than 180°']]}],
+   out(v){
+    const turn=v.pl==='turn', cw=v.dir==='cw', big=v.big==='big';
+    // turning: horizontal = Z, vertical = radius X
+    const u1=turn?v.y1:v.x1, w1=turn?v.x1/2:v.y1, u2=turn?v.y2:v.x2, w2=turn?v.x2/2:v.y2;
+    const a=arcSolve(u1,w1,u2,w2,v.r,cw,big);
+    if(!a) return `<p class="warnline">The two points are ${fx(Math.hypot(u2-u1,w2-w1),3)} mm apart, more than the diameter ${fx(2*v.r,3)}. Increase R or move the points.</p>`;
+    const g=cw?'G02':'G03', gs=cw?'G2':'G3';
+    let cx,cy,I,J,lines,sl;
+    if(turn){ cx=2*a.cv; cy=a.cu; I=a.cv-w1; J=a.cu-u1;
+      lines=[`G01 X${fPt(v.x1)} Z${fPt(v.y1)}`, `${g} X${fPt(v.x2)} Z${fPt(v.y2)} R${F(+fx(v.r,3))}`, `(OR WITH CENTRE)`, `${g} X${fPt(v.x2)} Z${fPt(v.y2)} I${fPt(I)} K${fPt(J)}`];
+      sl=[`G1 X${sPt(v.x1)} Z${sPt(v.y1)}`, `${gs} X${sPt(v.x2)} Z${sPt(v.y2)} CR=${fx(big?-v.r:v.r,3)}`, `; or with centre (I in radius)`, `${gs} X${sPt(v.x2)} Z${sPt(v.y2)} I=${sPt(I)} K=${sPt(J)}`]; }
+    else { cx=a.cu; cy=a.cv; I=a.cu-v.x1; J=a.cv-v.y1;
+      lines=[`G17 G01 X${fPt(v.x1)} Y${fPt(v.y1)}`, `${g} X${fPt(v.x2)} Y${fPt(v.y2)} R${F(+fx(big?-v.r:v.r,3))}`, `(OR WITH CENTRE)`, `${g} X${fPt(v.x2)} Y${fPt(v.y2)} I${fPt(I)} J${fPt(J)}`];
+      sl=[`G17 G1 X${sPt(v.x1)} Y${sPt(v.y1)}`, `${gs} X${sPt(v.x2)} Y${sPt(v.y2)} CR=${fx(big?-v.r:v.r,3)}`, `; or with centre`, `${gs} X${sPt(v.x2)} Y${sPt(v.y2)} I=${sPt(I)} J=${sPt(J)}`]; }
+    return tiles([[turn?'Centre X (dia)':'Centre X',fx(cx,4),'mm',1],[turn?'Centre Z':'Centre Y',fx(cy,4),'mm',1],['I (radius)',fx(I,4),''],[turn?'K':'J',fx(J,4),''],['Arc angle',fx(a.sweep,3),'°'],['Arc length',fx(a.len,3),'mm'],['Chord',fx(a.chord,3),'mm'],['Arc height',fx(big?2*v.r-a.sag:a.sag,3),'mm']])+
+      progSnip('g-arc','arc',lines,sl)+
+      `<p class="mono-note" style="margin:0">I, J, K are distances from the start point to the centre; I is always a radius value. ${turn?'Lathe direction shown for +X up (rear turret); a front turret swaps G02 and G03. ':'Full circles need I / J, R cannot describe them. '}Arcs over 180° use a negative R${turn?' on milling only; split a lathe arc instead':''}.</p>`; }},
+  {id:'shoulder', title:'Radius & chamfer program', sub:'Turning profile', fields:[
+    {id:'D1',label:'Small dia D1',unit:'mm',def:30,min:0.1},{id:'L1',label:'Length to shoulder L1',unit:'mm',def:25,min:0.1},
+    {id:'D2',label:'Large dia D2',unit:'mm',def:50,min:0.1},{id:'L2',label:'Length of D2',unit:'mm',def:15,min:0.1},
+    {id:'C',label:'Front chamfer',unit:'mm',def:1,min:0},{id:'R1',label:'Fillet radius (inside)',unit:'mm',def:2,min:0},
+    {id:'R2',label:'Edge radius (outside)',unit:'mm',def:1.5,min:0},{id:'stock',label:'Stock dia',unit:'mm',def:52,min:0.1},{id:'f',label:'Feed',unit:'mm/rev',def:0.12,min:0.001}],
+   out(v){
+    const {D1,L1,D2,L2,C,R1,R2,stock,f}=v;
+    if(D2<=D1) return '<p class="warnline">D2 must be larger than D1.</p>';
+    if((D2-D1)/2<R1+R2-1e-9) return `<p class="warnline">The step is ${fx((D2-D1)/2,3)} mm high, too small for R${R1} + R${R2}.</p>`;
+    if(L1<C+R1||L2<R2) return '<p class="warnline">The lengths are too short for the chamfer and radii.</p>';
+    const fan=[`(D${fx(D1,3)} X ${fx(L1,3)} - D${fx(D2,3)} X ${fx(L2,3)})`, 'G96 S200 M03', `G42 G00 X${fPt(D1-2*C)} Z2.`, `G01 Z0. F${F(f)}`, `X${fPt(D1)} Z${fPt(-C)} (CHAMFER C${fx(C,3)})`,
+      `Z${fPt(-L1+R1)}`, R1>0?`G02 X${fPt(D1+2*R1)} Z${fPt(-L1)} R${fPt(R1)} (FILLET)`:null, `G01 X${fPt(D2-2*R2)}`, R2>0?`G03 X${fPt(D2)} Z${fPt(-L1-R2)} R${fPt(R2)} (EDGE)`:null,
+      `G01 Z${fPt(-L1-L2)}`, `X${fPt(stock)}`, `G40 G00 X${fPt(stock+6)} Z5.`].filter(Boolean);
+    const sie=[`; D${fx(D1,3)} X ${fx(L1,3)} - D${fx(D2,3)} X ${fx(L2,3)}`, 'G96 S200 M3', `G42 G0 X${sPt(D1-2*C)} Z2`, `G1 Z0 F${fx(f,3)}`, `X${sPt(D1)} Z${sPt(-C)} ; CHAMFER`,
+      `Z${sPt(-L1+R1)}`, R1>0?`G2 X${sPt(D1+2*R1)} Z${sPt(-L1)} CR=${sPt(R1)} ; FILLET`:null, `G1 X${sPt(D2-2*R2)}`, R2>0?`G3 X${sPt(D2)} Z${sPt(-L1-R2)} CR=${sPt(R2)} ; EDGE`:null,
+      `G1 Z${sPt(-L1-L2)}`, `X${sPt(stock)}`, `G40 G0 X${sPt(stock+6)} Z5`].filter(Boolean);
+    const fan2=[`G42 G00 X${fPt(D1-2*C)} Z2.`, `G01 Z0. F${F(f)}`, `X${fPt(D1)} Z${fPt(-C)}`, `Z${fPt(-L1)}${R1>0?' ,R'+fPt(R1):''}`, `X${fPt(D2)}${R2>0?' ,R'+fPt(R2):''}`, `Z${fPt(-L1-L2)}`, `X${fPt(stock)}`, `G40 G00 X${fPt(stock+6)} Z5.`];
+    const sie2=[`G42 G0 X${sPt(D1-2*C)} Z2`, `G1 Z0 F${fx(f,3)}`, `X${sPt(D1)} Z${sPt(-C)}`, `Z${sPt(-L1)}${R1>0?' RND='+sPt(R1):''}`, `X${sPt(D2)}${R2>0?' RND='+sPt(R2):''}`, `Z${sPt(-L1-L2)}`, `X${sPt(stock)}`, `G40 G0 X${sPt(stock+6)} Z5`];
+    return tiles([['Fillet start Z',fx(-L1+R1,3),'',1],['Fillet end X',fx(D1+2*R1,3),'',1],['Edge start X',fx(D2-2*R2,3),''],['Edge end Z',fx(-L1-R2,3),'']])+
+      progSnip('g-sh1','explicit arcs',fan,sie)+progSnip('g-sh2',isF(st.ctrl)?'short form with ,R':'short form with RND=',fan2,sie2)+
+      `<p class="mono-note" style="margin:0">Fillet: moving −Z then +X turns clockwise, so G02. Edge: +X then −Z turns counter-clockwise, so G03 (+X up). ${isF(st.ctrl)?'The ,C / ,R corner commands need the option; on some lathes parameter 3405 bit 4 (CCR) selects whether the comma is written.':'CHF= and CHR= add chamfers the same way RND= adds radii.'}</p>`; }},
+  {id:'mcorner', title:'Corner radius contour', sub:'Milling · outside profile with G41', fields:[
+    {id:'L',label:'Length X',unit:'mm',def:80,min:1},{id:'W',label:'Width Y',unit:'mm',def:50,min:1},{id:'R',label:'Corner radius',unit:'mm',def:8,min:0},
+    {id:'dp',label:'Depth',unit:'mm',def:5,min:0.01},{id:'td',label:'Tool dia',unit:'mm',def:10,min:0.1},{id:'f',label:'Feed',unit:'mm/min',def:400,min:1}],
+   out(v){
+    const {L,W,R,dp,td,f}=v; if(R*2>Math.min(L,W)) return '<p class="warnline">Corner radius is too big for the size.</p>';
+    const ld=+fx(td+5,1), ym=W/2;
+    const fan=[`(OUTSIDE ${fx(L,3)} X ${fx(W,3)} R${fx(R,3)} - ORIGIN LOWER LEFT)`, `G00 X${fPt(-ld)} Y${fPt(ym)}`, 'G43 Z50. H01', 'Z2.', `G01 Z${fPt(-dp)} F${F(f/2)}`, `G41 G01 X0. Y${fPt(ym)} D01 F${F(f)}`,
+      `Y${fPt(W-R)}`, R>0?`G02 X${fPt(R)} Y${fPt(W)} R${fPt(R)}`:null, `G01 X${fPt(L-R)}`, R>0?`G02 X${fPt(L)} Y${fPt(W-R)} R${fPt(R)}`:null, `G01 Y${fPt(R)}`, R>0?`G02 X${fPt(L-R)} Y0. R${fPt(R)}`:null,
+      `G01 X${fPt(R)}`, R>0?`G02 X0. Y${fPt(R)} R${fPt(R)}`:null, `G01 Y${fPt(ym)}`, `G40 G01 X${fPt(-ld)}`, 'G00 Z50.'].filter(Boolean);
+    const sie=[`; OUTSIDE ${fx(L,3)} X ${fx(W,3)} R${fx(R,3)} - ORIGIN LOWER LEFT`, 'T1 D1', `G0 X${sPt(-ld)} Y${sPt(ym)}`, 'Z2', `G1 Z${sPt(-dp)} F${fx(f/2,1)}`, `G41 G1 X0 Y${sPt(ym)} F${fx(f,1)}`,
+      `Y${sPt(W-R)}`, R>0?`G2 X${sPt(R)} Y${sPt(W)} CR=${sPt(R)}`:null, `G1 X${sPt(L-R)}`, R>0?`G2 X${sPt(L)} Y${sPt(W-R)} CR=${sPt(R)}`:null, `G1 Y${sPt(R)}`, R>0?`G2 X${sPt(L-R)} Y0 CR=${sPt(R)}`:null,
+      `G1 X${sPt(R)}`, R>0?`G2 X0 Y${sPt(R)} CR=${sPt(R)}`:null, `G1 Y${sPt(ym)}`, `G40 G1 X${sPt(-ld)}`, 'G0 Z50'].filter(Boolean);
+    const fan2=[`G41 G01 X0. Y${fPt(ym)} D01 F${F(f)}`, `Y${fPt(W)}${R>0?' ,R'+fPt(R):''}`, `X${fPt(L)}${R>0?' ,R'+fPt(R):''}`, `Y0.${R>0?' ,R'+fPt(R):''}`, `X0.${R>0?' ,R'+fPt(R):''}`, `Y${fPt(ym)}`, `G40 G01 X${fPt(-ld)}`];
+    const sie2=[`G41 G1 X0 Y${sPt(ym)} F${fx(f,1)}`, `Y${sPt(W)}${R>0?' RND='+sPt(R):''}`, `X${sPt(L)}${R>0?' RND='+sPt(R):''}`, `Y0${R>0?' RND='+sPt(R):''}`, `X0${R>0?' RND='+sPt(R):''}`, `Y${sPt(ym)}`, `G40 G1 X${sPt(-ld)}`];
+    return progSnip('g-mc1','explicit arcs, climb (CW)',fan,sie)+progSnip('g-mc2',isF(st.ctrl)?'short form with ,R':'short form with RND=',fan2,sie2)+
+      `<p class="mono-note" style="margin:0">Lead-in of ${fx(ld,1)} mm is longer than the tool radius, so compensation starts cleanly. Travelling clockwise around the part with G41 gives climb milling.</p>`; }}
+];
+const COMP1=[
+  {id:'tnr', title:'Nose radius correction', sub:'When G41 / G42 is not used', fields:[
+    {id:'r',label:'Nose radius',unit:'mm',def:0.8,min:0.01},{id:'ang',label:'Taper / chamfer angle from Z axis',unit:'°',def:45,min:0,max:90}],
+   out(v){
+    const r=v.r, t=rad(v.ang), dz=r*(1-Math.tan(t/2)), dx=r*(1-Math.tan((Math.PI/2-t)/2)), err=r*(Math.sin(t)+Math.cos(t)-1);
+    return tiles([['Shift in Z',fx(dz,4),'mm',1],['Shift in X (radius)',fx(dx,4),'mm'],['Shift in X (dia)',fx(2*dx,4),'mm',1],['Error if not corrected',fx(err,4),'mm']])+
+      `<p class="mono-note" style="margin:0">ΔZ = r(1 − tan(θ/2)) · ΔX = r(1 − tan((90° − θ)/2)). Move both ends of the angled line by these amounts toward the part, or simply use G42 / G41. At 45° the classic figure is 0.586 × r.</p>`; }},
+  {id:'tnrprog', title:'Nose radius comp program', sub:'OD and ID samples', fields:[
+    {id:'kind',label:'Operation',type:'select',def:'od',opts:[['od','OD turning (G42, tip 3)'],['id','Boring (G41, tip 2)']]},
+    {id:'t',label:'Tool / offset no.',def:1,min:1,int:1},{id:'r',label:'Nose radius',unit:'mm',def:0.8,min:0.01}],
+   out(v){
+    const od=v.kind==='od', T=String(v.t).padStart(2,'0'), tip=od?3:2;
+    const fan= od ? [`T${T}${T} (OFFSET ${T}: R${fx(v.r,3)} T${tip})`, 'G50 S3000', 'G96 S200 M03', 'G00 X60. Z5.', 'G42 G00 X16. Z2. (COMP ON)', 'G01 Z0. F0.12', 'X20. Z-2.', 'Z-15.', 'X30. Z-25.', 'Z-40.', 'X52.', 'G40 G00 X60. Z5. (COMP OFF)']
+      : [`T${T}${T} (OFFSET ${T}: R${fx(v.r,3)} T${tip})`, 'G50 S2500', 'G96 S160 M03', 'G00 X18. Z5.', 'G41 G00 X34. Z2. (COMP ON)', 'G01 Z0. F0.1', 'X30. Z-2.', 'Z-12.', 'X24. Z-20.', 'Z-30.', 'X20.', 'G40 G00 X18. Z5. (COMP OFF)'];
+    const sie= od ? [`T${v.t} D1 ; R${fx(v.r,3)} CUTTING EDGE POS ${tip}`, 'LIMS=3000', 'G96 S200 M3', 'G0 X60 Z5', 'G42 G0 X16 Z2 ; COMP ON', 'G1 Z0 F0.12', 'X20 Z-2', 'Z-15', 'X30 Z-25', 'Z-40', 'X52', 'G40 G0 X60 Z5 ; COMP OFF']
+      : [`T${v.t} D1 ; R${fx(v.r,3)} CUTTING EDGE POS ${tip}`, 'LIMS=2500', 'G96 S160 M3', 'G0 X18 Z5', 'G41 G0 X34 Z2 ; COMP ON', 'G1 Z0 F0.1', 'X30 Z-2', 'Z-12', 'X24 Z-20', 'Z-30', 'X20', 'G40 G0 X18 Z5 ; COMP OFF'];
+    return tiles([['Code',od?'G42':'G41','',1],['Tip number',tip,'',1],['Offset R',fx(v.r,3),'mm']])+progSnip('c-tnr',od?'OD with G42':'ID with G41',fan,sie)+
+      `<p class="mono-note" style="margin:0">Comp switches on during the approach move and off during the move away. Every chamfer and taper in between is cut true to size.</p>`; }}
+];
+const COMP2=[
+  {id:'crc', title:'Cutter comp program', sub:'Outside or pocket', fields:[
+    {id:'kind',label:'Contour',type:'select',def:'out',opts:[['out','Outside profile (CW, climb)'],['in','Pocket wall (CCW, climb)']]},
+    {id:'L',label:'Length X',unit:'mm',def:60,min:1},{id:'W',label:'Width Y',unit:'mm',def:40,min:1},
+    {id:'td',label:'Tool dia',unit:'mm',def:10,min:0.1},{id:'dn',label:'D number',def:1,min:1,int:1},{id:'dp',label:'Depth',unit:'mm',def:5,min:0.01},{id:'f',label:'Feed',unit:'mm/min',def:400,min:1}],
+   out(v){
+    const {L,W,td,dp,f}=v, out=v.kind==='out', D=String(v.dn).padStart(2,'0');
+    if(!out && Math.min(L,W)/2<=td/2) return '<p class="warnline">The pocket is too small for this tool to lead in.</p>';
+    const ld=+fx(td+5,1);
+    const fan= out ? [`(OUTSIDE ${fx(L,3)} X ${fx(W,3)} - G41 CLIMB)`, `G00 X${fPt(-ld)} Y${fPt(-ld)}`, 'G43 Z50. H01', 'Z2.', `G01 Z${fPt(-dp)} F${F(f/2)}`, `G41 G01 X0. D${D} F${F(f)}`, `Y${fPt(W)}`, `X${fPt(L)}`, 'Y0.', `X${fPt(-ld)}`, `G40 G01 Y${fPt(-ld)}`, 'G00 Z50.']
+      : [`(POCKET WALL ${fx(L,3)} X ${fx(W,3)} - G41 CLIMB)`, `G00 X${fPt(L/2)} Y${fPt(W/2)}`, 'G43 Z50. H01', 'Z2.', `G01 Z${fPt(-dp)} F${F(f/2)} (CENTRE ALREADY CLEARED)`, `G41 G01 Y0. D${D} F${F(f)}`, `X${fPt(L)}`, `Y${fPt(W)}`, 'X0.', 'Y0.', `X${fPt(L/2)}`, `G40 G01 Y${fPt(W/2)}`, 'G00 Z50.'];
+    const sie= out ? [`; OUTSIDE ${fx(L,3)} X ${fx(W,3)} - G41 CLIMB`, `T1 D${v.dn}`, `G0 X${sPt(-ld)} Y${sPt(-ld)}`, 'Z2', `G1 Z${sPt(-dp)} F${fx(f/2,1)}`, `G41 G1 X0 F${fx(f,1)}`, `Y${sPt(W)}`, `X${sPt(L)}`, 'Y0', `X${sPt(-ld)}`, `G40 G1 Y${sPt(-ld)}`, 'G0 Z50']
+      : [`; POCKET WALL ${fx(L,3)} X ${fx(W,3)} - G41 CLIMB`, `T1 D${v.dn}`, `G0 X${sPt(L/2)} Y${sPt(W/2)}`, 'Z2', `G1 Z${sPt(-dp)} F${fx(f/2,1)} ; CENTRE ALREADY CLEARED`, `G41 G1 Y0 F${fx(f,1)}`, `X${sPt(L)}`, `Y${sPt(W)}`, 'X0', 'Y0', `X${sPt(L/2)}`, `G40 G1 Y${sPt(W/2)}`, 'G0 Z50'];
+    return tiles([['Code','G41','',1],['D register',fx(td/2,3),'mm (radius)',1],['Direction',out?'CW':'CCW','']])+progSnip('c-crc',out?'outside profile':'pocket wall',fan,sie)+
+      `<p class="mono-note" style="margin:0">${out?'Outside corners are rounded automatically by the tool path.':'Inside corners are left with the tool radius. A smaller corner radius needs a smaller tool.'} If the D register holds the diameter (FANUC parameter 5004 bit 3 ODI), enter ${fx(td,3)} instead.</p>`; }},
+  {id:'ofs', title:'Size correction', sub:'Wear offset from a measured part', fields:[
+    {id:'feat',label:'Feature',type:'select',def:'out',opts:[['out','Outside: boss, OD, width over'],['in','Inside: pocket, bore, slot']]},
+    {id:'nom',label:'Drawing size',unit:'mm',def:50,min:0},{id:'meas',label:'Measured size',unit:'mm',def:50.04,min:0}],
+   out(v){
+    const e=v.meas-v.nom, out=v.feat==='out', dD=out?-e/2:e/2, dX=v.nom-v.meas;
+    const state= Math.abs(e)<1e-9 ? 'On size' : (out? (e>0?'Oversize':'Undersize') : (e>0?'Oversize':'Undersize'));
+    return tiles([['Part is',state,'',1],['Error',fx(e,4),'mm'],['Mill D wear (radius)',(dD>=0?'+':'')+fx(dD,4),'mm',1],['Mill D wear (if dia)',(dD>=0?'+':'')+fx(2*dD,4),'mm'],['Lathe X wear (dia)',(dX>=0?'+':'')+fx(dX,4),'mm',1]])+
+      `<p class="mono-note" style="margin:0">Add the value to the wear offset that is already there. Milling: a smaller D moves the tool toward the part, which makes outside features smaller and pockets bigger. Lathe X wear works on diameter for both OD and bore.</p>`; }}
+];
+function renderGeo(){ renderCalcList(GEO, $('viewGeo')); renderCalcList(COMP1, $('compCalcs')); renderCalcList(COMP2, $('compCalcs2')); }
+
+/* ---------- programming alarms ---------- */
+const ACAT={syntax:'Format & syntax',motion:'Arcs & feed',comp:'Tool comp',cycle:'Cycles',macro:'Macro',sub:'Subprogram',tap:'Tapping & thread',op:'Operation'};
+// [code, message, category, cause, fix]
+const ALM={
+ fanuc:[
+  ['PS0003','TOO MANY DIGITS','syntax','A value has more digits than the address allows, for example X123456789.','Check the number and the decimal point. A missing decimal point (X50 read as 0.050) is a common cause of strange values too.'],
+  ['PS0004','ADDRESS NOT FOUND','syntax','A number or sign starts a block with no letter in front, for example a line reading only -10.5.','Add the missing address letter or delete the stray number.'],
+  ['PS0005','NO DATA AFTER ADDRESS','syntax','An address has no value, for example G01 X Z-10. or a lone F.','Give the address a value or remove it.'],
+  ['PS0006','ILLEGAL USE OF NEGATIVE SIGN','syntax','A minus sign is used where it is not allowed (F, S, T, M, double minus).','Remove the sign or move it to the right address.'],
+  ['PS0007','ILLEGAL USE OF DECIMAL POINT','syntax','A decimal point on an address that only takes whole numbers (M3., T1., P in M98, G04 P) or two points in one value.','Remove the point. Use X for a dwell in seconds (G04 X1.5) if you need decimals.'],
+  ['PS0009','IMPROPER NC-ADDRESS','syntax','A letter the control cannot use, such as an axis that does not exist on this machine or a typo (O for 0).','Check spelling and the axis names fitted to the machine.'],
+  ['PS0010','IMPROPER G-CODE','syntax','The G code does not exist, belongs to another G code system, or needs an option that is not fitted.','Check the G code list for this machine (lathe system A/B/C, milling) and the options.'],
+  ['PS0011','FEED ZERO (NO FEEDRATE COMMANDED)','motion','G01, G02 or G03 runs with no F, or F0.','Add F in the first cutting block. On a lathe also check G98 / G99 is correct.'],
+  ['PS0015','TOO MANY AXES COMMANDED','motion','More axes in one block than the control can move together.','Split the move over two blocks.'],
+  ['PS0020','OVER TOLERANCE OF RADIUS','motion','The arc end point is not on the same radius as the start point (I/J/K wrong, wrong plane, or absolute/incremental mix-up).','Recalculate the centre with the arc solver. Check G17/G18/G19 and G90/G91. Tolerance is set in parameter 3410.'],
+  ['PS0021','ILLEGAL PLANE AXIS COMMANDED','motion','An arc uses an axis outside the selected plane, for example G17 with G02 X.. Z..','Select the right plane (G18 for XZ) before the arc.'],
+  ['PS0029','ILLEGAL OFFSET VALUE','comp','The offset value is outside the allowed range.','Check the value typed on the offset screen.'],
+  ['PS0030','ILLEGAL OFFSET NUMBER','comp','D, H or T offset number is higher than the number of offsets fitted.','Use an offset number that exists, e.g. D01 instead of D101.'],
+  ['PS0033','NO SOLUTION AT CRC','comp','With G41/G42 on, the control cannot find the intersection of two path elements.','Check the direction of the next move, avoid tiny steps, or use a smaller tool / D value.'],
+  ['PS0034','NO CIRC ALLOWED IN ST-UP/EXT BLK','comp','G41, G42 or G40 is in a G02/G03 block.','Start and cancel compensation on a G00 or G01 line longer than the tool radius.'],
+  ['PS0037','CAN NOT CHANGE PLANE IN CRC','comp','G17/G18/G19 changed while G41/G42 is active.','Cancel with G40 before changing plane.'],
+  ['PS0041','INTERFERENCE IN CRC','comp','The tool would cut into the part: inside corner or step smaller than the tool radius, or a move reverses direction.','Use a smaller tool, check the D value, or change the path. Lengthen lead-in and lead-out moves.'],
+  ['PS0045','ADDRESS Q NOT FOUND (G73/G83)','cycle','Peck drilling cycle with no Q or Q0.','Add the peck depth, e.g. G83 … Q5.'],
+  ['PS0046','ILLEGAL REFERENCE RETURN COMMAND','motion','G30 with a P number that does not exist, or a wrong reference return format.','Use G30 P2/P3/P4 and check the axes in the block.'],
+  ['PS0060','SEQUENCE NUMBER NOT FOUND','sub','The N number being searched for or jumped to is not in the program.','Check the N number spelling and that it is in the same program.'],
+  ['PS0061','ADDRESS P/Q NOT FOUND IN G70-G73','cycle','The second G71/G72/G73 block or the G70 has no P or Q.','Write both: G71 P10 Q20 U.. W.. F..'],
+  ['PS0062','ILLEGAL COMMAND IN G71-G76','cycle','A cycle value is zero or impossible: G71 U0, G76 thread height smaller than the first cut, Q0, or wrong G76 P digits.','Check each value. In G76: P(thread height) larger than Q(first cut), P digits = mm aa (passes, chamfer, angle).'],
+  ['PS0063','SEQUENCE NUMBER NOT FOUND (G70-G73)','cycle','The N number given in P is not in the program.','Make P and Q point at real N numbers (N10 … N20).'],
+  ['PS0064','SHAPE PROGRAM NOT MONOTONOUSLY','cycle','The G71/G72 type I shape goes back on itself (X falls during an OD G71).','Change the shape, use type II (X and Z in the first shape block), or use G73.'],
+  ['PS0065','ILLEGAL COMMAND IN G71-G73','cycle','The first shape block (the P block) is not G00/G01, or has a Z move in type I G71.','First block: G00 or G01 with X only (G71) or Z only (G72).'],
+  ['PS0066','IMPROPER COMMAND IN G71-G73','cycle','A forbidden command inside the shape blocks, such as M98, G28 or a T code.','Keep only G00, G01, G02, G03 and F, S inside the shape.'],
+  ['PS0069','FORMAT ERROR IN G70-G73','cycle','The last shape block ends with a chamfer or corner radius (,C / ,R).','End the shape with a plain move.'],
+  ['PS0073','PROGRAM NUMBER ALREADY IN USE','sub','The O number you are saving or loading already exists.','Use another number or delete the old program first.'],
+  ['PS0074','ILLEGAL PROGRAM NUMBER','sub','O number is 0 or outside the allowed range.','Use O1 – O9999 (or the range set on your machine).'],
+  ['PS0076','PROGRAM NOT FOUND','sub','M98 / G65 / M99 calls a program that is not in memory or not in the current folder.','Load the subprogram, check the O number, and the folder set for subprogram calls.'],
+  ['PS0077','TOO MANY SUB, MACRO CALLS','sub','More nesting levels than allowed (subprogram and macro calls inside each other).','Reduce nesting. A subprogram must not call itself without an exit.'],
+  ['PS0078','SEQUENCE NUMBER NOT FOUND','sub','M99 P or GOTO jumps to an N number that does not exist.','Check the N number after M99 P / GOTO.'],
+  ['PS0110','DATA OVERFLOW','macro','A macro value is too big to convert to a whole number or to an axis value.','Check the variable before use; it may hold a huge or wrong value.'],
+  ['PS0111','CALCULATED DATA OVERFLOW','macro','A calculation result is too big.','Check the formula and the input variables.'],
+  ['PS0112','ZERO DIVIDE','macro','Division by zero, often by an empty (#0) variable.','Make sure the divisor is set. Test it first: IF[#2EQ0]GOTO..'],
+  ['PS0113','IMPROPER COMMAND','macro','A macro function is used where it is not allowed.','Check the function name and where it is used.'],
+  ['PS0114','ILLEGAL EXPRESSION FORMAT','macro','The macro statement is written wrongly: missing ], operator at the end, GOTO with no number, = missing.','Rewrite the statement. Use [ ] for expressions, not ( ).'],
+  ['PS0115','VARIABLE NO. OUT OF RANGE','macro','The variable number does not exist on this machine, e.g. #300 without the option, or #[#1] with a bad #1.','Use #100 – #199 or #500 – #999, or check the indirect variable value.'],
+  ['PS0116','WRITE PROTECTED VARIABLE','macro','Writing to a read-only system variable such as #5021 or #3901 with protection on.','Read it only, or copy it into a common variable.'],
+  ['PS0118','TOO MANY BRACKET NESTING','macro','More than 5 levels of [ ] in one expression.','Split the calculation into two lines.'],
+  ['PS0119','ARGUMENT VALUE OUT OF RANGE','macro','A function gets an impossible value: SQRT of a negative, ASIN/ACOS outside −1 to 1.','Check the variable before calling the function.'],
+  ['PS0122','TOO MANY MACRO NESTING','macro','Too many G65/G66 calls inside each other.','Reduce the call levels.'],
+  ['PS0124','MISSING END STATEMENT','macro','A WHILE … DOn has no matching ENDn.','Add ENDn with the same number.'],
+  ['PS0126','ILLEGAL LOOP NUMBER','macro','DO / END number is not 1 – 3, numbers do not match, or loops cross each other.','Nest loops inside each other: DO1 … DO2 … END2 … END1.'],
+  ['PS0127','DUPLICATE NC, MACRO STATEMENT','macro','An NC word and a macro statement are on the same line, e.g. G01 X10. #1=5','Put the macro statement on its own line.'],
+  ['PS0128','ILLEGAL MACRO SEQUENCE NUMBER','macro','GOTO jumps to an N number that does not exist or is out of range.','Check the target N number in the same program.'],
+  ['PS0129','ILLEGAL ARGUMENT ADDRESS','macro','G65 uses G, L, N, O or P as an argument letter.','Use other letters; see the G65 table on the Variables tab.'],
+  ['PS0200','ILLEGAL S CODE COMMAND','tap','Rigid tap with S0 or S above the maximum for rigid tapping.','Give a valid S with M29 before G84.'],
+  ['PS0201','FEEDRATE NOT FOUND IN RIGID TAP','tap','G84 / G74 rigid tap with no F.','F = S × pitch (G94), or F = pitch (G95).'],
+  ['PS0203','PROGRAM MISS AT RIGID TAPPING','tap','M29 and G84 are not written in the right order or have other blocks between them.','Write M29 S.. on the line just before G84.'],
+  ['PS0205','RIGID MODE DI SIGNAL OFF','tap','Rigid tap signal is not on when G84 starts, usually M29 missing.','Add M29 S.. before G84. If it is there, check the ladder.'],
+  ['PS0224','ZERO RETURN NOT FINISHED','motion','Axes were not referenced after power on and the program moves them.','Do a reference return (home) on all axes.'],
+  ['MC3001+','#3000 MACRO ALARM','macro','Your own macro raised an alarm with #3000=n(TEXT).','Read the message, fix the condition (e.g. reset the tool life counter), then reset.']],
+ mits:[
+  ['P10','No. of simultaneous axes over','motion','More axes in one block than allowed.','Split the move over two blocks.'],
+  ['P11','Illegal axis address','syntax','An axis name that does not exist on this machine.','Check axis letters against the machine.'],
+  ['P29','Not accept command','syntax','The command is not allowed in the current mode (e.g. during compensation or a fixed cycle).','Cancel the mode first (G40, G80, G67) or move the command.'],
+  ['P32','Illegal address','syntax','An address the control cannot use.','Check spelling and options.'],
+  ['P33','Format error','syntax','The command format is wrong, e.g. missing address in a fixed cycle or G10.','Compare with the format in the programming manual.'],
+  ['P34','Illegal G code','syntax','The G code does not exist or needs an option.','Check the G-code list type and options.'],
+  ['P35','Setting value range over','syntax','A value is outside its allowed range.','Check the number and its unit.'],
+  ['P36','Program end error','sub','The end of the program was reached without M02 or M30 in memory mode.','Add M30 (main) or M99 (subprogram) at the end.'],
+  ['P37','O, N No. zero','sub','O0 or N0 is used.','Use numbers from 1 upward.'],
+  ['P39','No specifications','syntax','The command needs an option that is not fitted.','Check the option list or use another method.'],
+  ['P62','F command nothing','motion','A cutting move with no F.','Add F in the first G01/G02/G03 block.'],
+  ['P70','Arc end point deviation large','motion','The arc end point is not on the radius from the centre (I, J, K wrong).','Recalculate with the arc solver; check plane and G90/G91.'],
+  ['P71','Arc center error','motion','With R, no centre can be found: the points are further apart than 2 × R.','Increase R or correct the end point.'],
+  ['P90','No spec: Thread cutting','tap','Threading command without the option.','Check the specification.'],
+  ['P93','Illegal pitch value','tap','Thread lead is zero or out of range.','Check F (pitch) or E (threads per inch).'],
+  ['P151','G2,3 CMP. ERROR','comp','Radius compensation started or cancelled in an arc block.','Start and cancel with G00 / G01 moves.'],
+  ['P152','I.S.P NOTHING','comp','No intersection point can be found during compensation.','Change the path or tool radius.'],
+  ['P153','I.F ERROR','comp','Interference: the tool would cut into the part.','Use a smaller tool, check the offset, or change the path.'],
+  ['P155','Fixed cycle during comp','comp','A fixed cycle is commanded while radius compensation is on.','Cancel with G40 before the cycle.'],
+  ['P158','Illegal tip point','comp','The nose R tip number is not 0 – 9.','Correct the tip number on the offset screen.'],
+  ['P170','No compensation No.','comp','D, H or T offset number does not exist.','Use an offset number that is fitted.'],
+  ['P172','G10 L number error','syntax','G10 uses an L number that does not exist.','Check the L value for the data you are writing.'],
+  ['P173','G10 P number error','syntax','G10 P number is out of range.','Check the P value (offset or work offset number).'],
+  ['P181','No spindle command (tap)','tap','Synchronous tapping without S.','Give S before or in the tapping block.'],
+  ['P182','Synchronous tap error','tap','Spindle and tapping axis could not be linked.','Check the spindle, gear and synchronous tap parameters.'],
+  ['P183','Pitch/thread number zero','tap','Tapping or thread cycle with no pitch.','Add F (pitch) or E (TPI).'],
+  ['P184','Pitch/thread number error','tap','Pitch is out of range.','Check the pitch value and units.'],
+  ['P191','Taper length error','cycle','In a G90/G94 type turning cycle the taper amount is bigger than the cut.','Check the R value against the move.'],
+  ['P192','Chamfering error','cycle','Thread chamfer amount is wrong in the cycle.','Check the chamfer setting / parameter.'],
+  ['P200','No spec: MRC cycle','cycle','G70 – G73 used without the option.','Check the specification.'],
+  ['P201','Program error (MRC)','cycle','The shape blocks contain a forbidden command (reference return, threading, subprogram call).','Keep only G00, G01, G02, G03 and F/S in the shape.'],
+  ['P202','Block over (MRC)','cycle','The shape is longer than the allowed number of blocks.','Shorten the shape or split the roughing.'],
+  ['P203','D cmd figure error (MRC)','cycle','The shape cannot be cut by the cycle, e.g. not monotone in G71.','Change the shape or use G73.'],
+  ['P204','E cmd error (MRC)','cycle','A cycle value is wrong: depth, allowance, count, or thread height.','Check each value in the G71 – G76 blocks.'],
+  ['P230','Subprogram nesting over','sub','Too many subprogram levels.','Reduce nesting.'],
+  ['P231','No sequence No.','sub','M98 H / M99 P / GOTO jumps to an N number that does not exist.','Check the N number.'],
+  ['P232','No program No.','sub','The called program is not in memory.','Load it and check the number.'],
+  ['P241','No variable No.','macro','The variable number does not exist.','Use a variable range fitted on this machine.'],
+  ['P242','= not defined at variable set','macro','A variable line has no = sign.','Write #1=… with =.'],
+  ['P243','Variable illegal','macro','Wrong use of a variable, such as writing to a read-only one.','Read system variables only; copy to a common variable.'],
+  ['P272','NC word and macro statement','macro','An NC word and a macro statement are in the same block.','Put the macro statement on its own line.'],
+  ['P273','Macro call nesting over','macro','Too many macro call levels.','Reduce G65/G66 nesting.'],
+  ['P275','Macro argument over','macro','Too many argument sets in G65.','Reduce the arguments.'],
+  ['P276','Call cancel without call','macro','G67 without an active G66.','Remove G67 or add G66.'],
+  ['P277','Macro alarm message','macro','#3000=n(TEXT) in your macro raised an alarm.','Read the message and fix the condition.'],
+  ['P280','Brackets exceeded','macro','More than 5 levels of [ ].','Split the expression.'],
+  ['P281','Brackets not paired','macro','Number of [ and ] differ.','Count the brackets.'],
+  ['P282','Calculation impossible','macro','The expression cannot be calculated (format wrong).','Rewrite the formula.'],
+  ['P283','Divided by zero','macro','Division by zero.','Check the divisor before dividing.'],
+  ['P290','IF sentence error','macro','IF statement written wrongly.','Use IF[condition]GOTOn.'],
+  ['P291','WHILE sentence error','macro','WHILE statement written wrongly.','Use WHILE[condition]DOm … ENDm.'],
+  ['P293','DO-END nesting over','macro','Too many nested loops.','Reduce the loop levels.'],
+  ['P294','DO-END not paired','macro','A DO has no matching END or the numbers differ.','Pair every DOm with ENDm.'],
+  ['P295','WHILE/GOTO in tape','macro','WHILE or GOTO used in tape (DNC) operation.','Run the program from memory.'],
+  ['P296','No address (macro)','macro','A required argument for the macro is missing.','Give all required arguments.'],
+  ['P430','R-pnt return incomplete','motion','An axis has not been reference-returned.','Do a reference return on all axes.'],
+  ['M01 0004','External interlock axis exists','op','Program waits because an interlock signal is on for an axis.','Check doors, clamps and machine conditions that hold the interlock.'],
+  ['M01 0005','Internal interlock axis exists','op','An internal interlock stops the axis (e.g. servo off, axis removal).','Check the axis state and servo.'],
+  ['M01 0101','No operation mode','op','Cycle start pressed with no valid mode selected.','Select Memory, MDI or Tape mode.'],
+  ['M01 0102','Cutting override zero','op','Feed override switch at 0 %.','Turn the override up.'],
+  ['M01 0103','External feed rate zero','op','External feed rate is 0 during JOG or dry run.','Check the feed rate switch.'],
+  ['M01 0105','Spindle stop','op','Feed per revolution or threading while the spindle is stopped.','Start the spindle (M03/M04) before the move.']],
+ siemens:[
+  ['10720','Software limit switch','motion','The programmed end point is beyond the software limit. Found during preprocessing, before the axis moves.','Check the work offset, tool length and the coordinate in the block shown.'],
+  ['10750','TRC without tool number','comp','G41/G42 is active but no tool / D0 is selected.','Call T.. D.. before G41/G42.'],
+  ['10751','Collision danger with TRC','comp','Bottleneck detection: the tool would cut into the contour.','Use a smaller tool, check the radius in the tool data, or change the contour.'],
+  ['10762','Too many empty blocks with TRC','comp','Too many blocks without a move in the plane between two moves while G41/G42 is on.','Remove the extra blocks or raise the limit in the machine data.'],
+  ['12000','Address programmed repeatedly','syntax','The same address appears twice in one block, e.g. X10 X20.','Remove the duplicate.'],
+  ['12050','DIN address not configured','syntax','A letter that is not defined as an address, often a typo.','Check spelling and axis names.'],
+  ['12060','Same G group programmed repeatedly','syntax','Two G codes of the same group in one block, e.g. G0 G1.','Keep one of them.'],
+  ['12080','Syntax error','syntax','The block cannot be read. The text after the error position is wrong: missing =, missing bracket, wrong character.','Look at the place shown in the alarm text. Expressions need =, e.g. X=R1+5.'],
+  ['12090','Unexpected numerical value','syntax','A number where no number is allowed.','Check the block for a stray value.'],
+  ['12110','Block syntax cannot be interpreted','syntax','The block structure is not valid.','Check the order of commands and spelling.'],
+  ['12150','Operation not compatible with data type','macro','A calculation mixes data types, e.g. a STRING in arithmetic.','Use matching variable types.'],
+  ['12160','Value range exceeded','syntax','A value is too large for its address or variable type.','Check the value and units.'],
+  ['12170','Name defined several times','macro','A DEF variable or label name is defined twice.','Rename or delete the second definition.'],
+  ['12180','Illegal chaining of operators','macro','Two operators in a row, e.g. R1=R2+*3.','Correct the expression.'],
+  ['12330','Type of parameter incorrect','sub','A subprogram parameter has the wrong type in the call.','Match the call to the PROC definition.'],
+  ['12340','Number of parameters too high','sub','More values in the call than the PROC defines.','Remove extra parameters.'],
+  ['12400','Element does not exist','macro','Array index outside the array.','Check the index variable.'],
+  ['12470','G function unknown','syntax','The G code does not exist on this control.','Check the G code list.'],
+  ['12550','Name not defined or option not available','syntax','Unknown name: a variable not DEFined, a cycle not loaded, a GUD not activated, or a typing error.','Check spelling, DEF the variable at the top, or check the cycle / option exists.'],
+  ['12560','Programmed value exceeds limits','syntax','A value outside its permitted range.','Check the value against the limit.'],
+  ['14000','Illegal end of file','sub','The program ends without M30 / M17 / RET.','Add M30 (main) or M17 (subprogram).'],
+  ['14011','Program does not exist','sub','The called subprogram is not in the NC memory, or not released.','Load the subprogram and check the name.'],
+  ['14012','Max. subroutine level exceeded','sub','Too many subprogram levels.','Reduce nesting.'],
+  ['14040','Error in end point of circle','motion','The arc end point does not lie on the circle defined by the centre (I, J, K or CR).','Recalculate with the arc solver; check G17/G18 and that I/K are incremental.'],
+  ['14050','Nesting depth for arithmetic exceeded','macro','Too many bracket levels in an expression.','Split the calculation.'],
+  ['14051','Arithmetic error in part program','macro','Division by zero, square root of a negative, or similar.','Check the values before the calculation.'],
+  ['14080','Jump destination not found','sub','GOTOF / GOTOB label not found in the direction searched.','Check the label name and use GOTOF (forward) or GOTOB (back) correctly.'],
+  ['14095','Radius for circle too small','motion','CR is smaller than half the distance between start and end.','Increase CR or correct the end point.'],
+  ['14800','Path velocity ≤ zero','motion','A cutting move with F0 or no F.','Program F before the first G1/G2/G3.'],
+  ['17070','Data is write-protected','macro','Writing to a read-only system variable.','Read only, or check access level.'],
+  ['17180','Illegal D number','comp','The D number does not exist for the active tool.','Create the cutting edge D in the tool list or correct the D.'],
+  ['17190','Illegal T number','comp','The T number is not in the tool list.','Create the tool or correct the T number.'],
+  ['61000','No tool offset active','cycle','A cycle needs a tool with D but none is active.','Call T.. D.. before the cycle.'],
+  ['61001','Thread pitch incorrectly defined','tap','Pitch is missing or both pitch and metric size are given in the thread / tap cycle.','Give either MPIT or PIT, not both.'],
+  ['61002','Machining type incorrectly defined','cycle','The VARI (machining type) value is not allowed for this cycle.','Check VARI against the cycle help screen.'],
+  ['61003','No feedrate programmed in cycle','cycle','The cycle has no feed.','Program F before the cycle.'],
+  ['61009','Active tool number = 0','cycle','No tool is active when the cycle starts.','Call the tool before the cycle.'],
+  ['61101','Reference plane incorrectly defined','cycle','RFP, RTP and DP do not make sense, e.g. return plane below the reference plane or depth above it.','RTP above RFP, DP below RFP (for drilling downward).'],
+  ['61102','No spindle direction programmed','cycle','Boring / tapping cycle needs a spindle direction but SDIR / M3 is missing.','Set the spindle direction parameter or program M3/M4.'],
+  ['61107','First drilling depth incorrectly defined','cycle','CYCLE83 first depth is deeper than the final depth or wrong sign.','Check FDEP / FDPR against DP.']]
+};
+let almCat='all';
+function renderAlarms(){
+  const q=($('aq').value||'').trim().toLowerCase(), list=ALM[st.ctrl];
+  const cats=['all',...Object.keys(ACAT).filter(k=>list.some(a=>a[2]===k))];
+  if(!cats.includes(almCat)) almCat='all';
+  $('almCats').innerHTML=cats.map(k=>`<button data-cat="${k}" aria-pressed="${k===almCat}">${k==='all'?'All':ACAT[k]}<span>${k==='all'?list.length:list.filter(a=>a[2]===k).length}</span></button>`).join('');
+  $('almCats').querySelectorAll('button').forEach(b=>b.onclick=()=>{almCat=b.dataset.cat;renderAlarms();});
+  $('almNote').textContent={fanuc:'FANUC 0i-F PS (program) alarms and macro alarms. Older controls show the same number without "PS0", e.g. 020.',mits:'Mitsubishi M70 / M80 P program errors, plus the M01 operation errors you meet while running a program.',siemens:'Sinumerik 828D NC program alarms (10xxx – 17xxx) and cycle alarms (61xxx).'}[st.ctrl]+' Message wording can differ slightly between software versions.';
+  const rows=list.filter(a=>(almCat==='all'||a[2]===almCat) && (!q || a.join(' ').toLowerCase().includes(q) || a[0].toLowerCase().replace(/^ps0*/,'').startsWith(q.replace(/^0+/,''))));
+  $('almList').innerHTML = rows.length ? rows.map(a=>`<details class="cy alm"><summary><b>${esc(a[0])}</b><span>${esc(a[1])}</span><span class="almcat">${ACAT[a[2]]}</span></summary><div class="body"><dl class="cf"><dt class="c">Cause</dt><dd>${esc(a[3])}</dd><dt class="f">Fix</dt><dd>${esc(a[4])}</dd></dl></div></details>`).join('')
+    : `<p class="empty">No programming alarm matches “${esc(q)}” for ${CTRL[st.ctrl].name}.</p>`;
+}
+$('aq').addEventListener('input', renderAlarms);
+
+/* ---------- about & license ---------- */
+COPYBUF.email='marveltech.cbe0270@gmail.com';
+const LIC_SALT='MARVELTECH|CNC-APP-BUILDER|V1';
+function fnv(str,seed){ let h=seed>>>0; for(let i=0;i<str.length;i++){ h^=str.charCodeAt(i); h=Math.imul(h,16777619)>>>0; } return h>>>0; }
+function licKeyFor(name){
+  const n=name.replace(/\s+/g,'').toUpperCase(), A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let out='', h1=fnv(n+LIC_SALT,2166136261), h2=fnv(LIC_SALT+n,0x811c9dc5^0x5bd1e995), h3=fnv(n+'#'+h1+'#'+h2,h1);
+  for(const h of [h1,h2,h3]){ let x=h; for(let i=0;i<4;i++){ out+=A[x%32]; x=Math.floor(x/32); } }
+  return `MT-${out.slice(0,4)}-${out.slice(4,8)}-${out.slice(8,12)}`;
+}
+const normKey=k=>k.toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/^MT/,'');
+function licLoad(){ try{ return JSON.parse(localStorage.getItem('cncLicense')||'null'); }catch(e){ return null; } }
+function licShow(){
+  const L=licLoad(), ok=L && L.name && normKey(L.key)===normKey(licKeyFor(L.name));
+  $('licState').textContent= ok ? 'Activated' : 'Not activated';
+  $('licState').className='lic'+(ok?' ok':'');
+  if(ok){ $('licName').value=L.name; $('licKey').value=L.key; $('licMsg').textContent=`Licensed to ${L.name}. Thank you for using CNC Machine Application Builder.`; }
+}
+$('licAct').onclick=()=>{
+  const name=$('licName').value.replace(/\s+/g,'').toLowerCase(), key=$('licKey').value.trim();
+  if(!name||!key){ $('licMsg').textContent='Enter both your email id and the license key.'; return; }
+  if(!/^[^@]+@[^@]+\.[^@]+$/.test(name)){ $('licMsg').textContent='Enter a valid email id, for example you@example.com.'; return; }
+  if(normKey(key)!==normKey(licKeyFor(name))){ $('licState').textContent='Invalid key'; $('licState').className='lic bad'; $('licMsg').textContent='This key does not match the email id. Check both, or contact Marvel Tech.'; return; }
+  try{ localStorage.setItem('cncLicense', JSON.stringify({name, key:licKeyFor(name), at:new Date().toISOString().slice(0,10)})); }catch(e){}
+  licShow(); trialShow(); toast('License activated');
+};
+$('licDel').onclick=()=>{ try{ localStorage.removeItem('cncLicense'); }catch(e){} $('licName').value=''; $('licKey').value=''; $('licState').textContent='Not activated'; $('licState').className='lic'; $('licMsg').textContent='License removed from this device.'; trialShow(); };
+const TRIAL_MS=24*60*60*1000;
+function trialStart(){ try{ let t=+localStorage.getItem('cncTrialStart'); if(!t){ t=Date.now(); localStorage.setItem('cncTrialStart',String(t)); } return t; }catch(e){ return Date.now(); } }
+function isLicensed(){ const L=licLoad(); return !!(L && L.name && normKey(L.key)===normKey(licKeyFor(L.name))); }
+const trialLeft=()=>trialStart()+TRIAL_MS-Date.now();
+const isLocked=()=>!isLicensed() && trialLeft()<=0;
+function trialShow(){
+  const lic=isLicensed(), left=trialLeft(), lock=!lic&&left<=0;
+  $('trialBar').hidden=lic;
+  $('trialBar').className='trial'+(lock?' over':'');
+  if(!lic){
+    const h=Math.floor(Math.max(0,left)/3600000), m=Math.floor(Math.max(0,left)%3600000/60000);
+    $('trialText').innerHTML = lock ? 'Free trial has ended. Activate a license to continue.' : `Free trial: <b>${h} h ${String(m).padStart(2,'0')} min</b> left`;
+  }
+  $('lockCard').hidden=!lock;
+  document.querySelectorAll('.tabs button').forEach(b=>{ if(b.id!=='tabAbout') b.setAttribute('aria-disabled', lock?'true':'false'); });
+  if(lock && typeof setTab==='function' && $('viewAbout').hidden) setTab('about');
+}
+licShow();
+setInterval(trialShow, 30000);
+/* ---------- license request ---------- */
+const MT_MAIL='marveltech.cbe0270@gmail.com';
+const rqIds=['rqEmail','rqName','rqCo','rqPh'];
+function rqUpdate(){
+  const g=id=>$(id).value.trim(), em=g('rqEmail').replace(/\s+/g,'').toLowerCase();
+  let left='—'; try{ const t=+localStorage.getItem('cncTrialStart'); if(t){ const ms=t+24*3600000-Date.now(); left= ms>0?`${Math.floor(ms/3600000)} h left`:'ended'; } }catch(e){}
+  const body=`Hello Marvel Tech,
+
+Please send me a license key for CNC Machine Application Builder.
+
+Email id : ${em||'(enter your email id)'}
+Name     : ${g('rqName')||'-'}
+Company  : ${g('rqCo')||'-'}
+Phone    : ${g('rqPh')||'-'}
+Version  : 1.0
+Trial    : ${left}
+
+Thank you.`;
+  COPYBUF.req=body; $('cp-req').textContent=body;
+  $('rqSend').href=`mailto:${MT_MAIL}?subject=${encodeURIComponent('License request - CNC Machine Application Builder'+(em?' - '+em:''))}&body=${encodeURIComponent(body)}`;
+  try{ localStorage.setItem('cncReq', JSON.stringify(Object.fromEntries(rqIds.map(id=>[id,$(id).value])))); }catch(e){}
+}
+try{ const r=JSON.parse(localStorage.getItem('cncReq')||'null'); if(r) rqIds.forEach(id=>{ if(r[id]) $(id).value=r[id]; }); }catch(e){}
+rqIds.forEach(id=>$(id).addEventListener('input', rqUpdate));
+$('rqSend').addEventListener('click', e=>{
+  const em=$('rqEmail').value.replace(/\s+/g,'');
+  if(!/^[^@]+@[^@]+\.[^@]+$/.test(em)){ e.preventDefault(); $('rqMsg').textContent='Enter a valid email id first. The license key is made for that email id.'; $('rqEmail').focus(); return; }
+  $('licName').value=em.toLowerCase();
+  $('rqMsg').textContent='Your email app should open with the request. If it did not, tap Copy request and send it to '+MT_MAIL+'. When the key arrives, enter it in the License section above.';
+});
+rqUpdate();
+
+
+/* ---------- tabs ---------- */
+const TABS={gen:['tabGen','viewGen','programs'], calc:['tabCalc','viewCalc','calculators'], cyc:['tabCyc','viewCyc','cycles'], thr:['tabThr','viewThr','threads'], geo:['tabGeo','viewGeo','geometry'], comp:['tabComp','viewComp','tool-comp'], alm:['tabAlm','viewAlm','alarms'], var:['tabVar','viewVar','variables'], about:['tabAbout','viewAbout','about']};
+function setTab(v){
+  if(!TABS[v]) v='gen';
+  if(isLocked() && v!=='about'){ v='about'; toast('Trial ended. Activate a license'); }
+  for(const [k,[t,vw]] of Object.entries(TABS)){ $(vw).hidden=k!==v; $(t).setAttribute('aria-selected',k===v); }
+  $('ctrlSec').hidden = v==='calc' || v==='about';
+  try{ history.replaceState(null,'','#'+TABS[v][2]); }catch(e){}
+  if(v==='gen') draw(values());
+}
+const tabFromHash=()=>Object.keys(TABS).find(k=>'#'+TABS[k][2]===location.hash)||'gen';
+for(const k of Object.keys(TABS)) $(TABS[k][0]).onclick=()=>setTab(k);
+window.addEventListener('hashchange', ()=>setTab(tabFromHash()));
+
+/* ---------- copy ---------- */
+function toast(t){ const el=$('toast'); el.textContent=t; el.classList.add('on'); clearTimeout(toast.h); toast.h=setTimeout(()=>el.classList.remove('on'),1400); }
+function copy(text, selEl){
+  if(window.AndroidApp && AndroidApp.copy){ try{ AndroidApp.copy(text); toast('Copied'); return; }catch(e){} }
+  const fallback=()=>{ const r=document.createRange(); r.selectNodeContents(selEl); const s=getSelection(); s.removeAllRanges(); s.addRange(r); toast('Selected — tap Copy'); };
+  try{ navigator.clipboard.writeText(text).then(()=>toast('Copied'), fallback); }catch(e){ fallback(); }
+}
+$('copyBtn').onclick=()=>{ if(current) copy(current, $('out')); };
+$('copyCall').onclick=()=>copy(currentCall, $('callLine'));
+$('resetBtn').onclick=()=>{ for(const k of Object.keys(st.vals)) if(k.startsWith(st.tpl+'.')) delete st.vals[k]; save(); renderForm(); toast('Defaults restored'); };
+
+renderAll();
+renderCalcs();
+$('trialBtn').onclick=()=>{ setTab('about'); $('licName').focus(); };
+setTab(isLocked()?'about':tabFromHash());
+trialShow();
+</script>
+
+</body>
+</html>
